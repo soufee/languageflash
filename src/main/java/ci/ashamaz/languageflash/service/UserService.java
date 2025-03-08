@@ -8,6 +8,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
+
 
 @Service
 public class UserService {
@@ -29,9 +31,17 @@ public class UserService {
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setRole("USER");
-        user.setCreatedAt(LocalDateTime.now()); // Явно задаём createdAt
-        user.setUpdatedAt(LocalDateTime.now()); // Явно задаём updatedAt
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
 
         return userRepository.save(user);
+    }
+
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
+    public boolean checkPassword(User user, String rawPassword) {
+        return passwordEncoder.matches(rawPassword, user.getPasswordHash());
     }
 }

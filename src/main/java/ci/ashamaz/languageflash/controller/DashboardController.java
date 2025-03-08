@@ -8,13 +8,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import javax.servlet.http.HttpSession;
 
 @Controller
-public class HomeController {
+public class DashboardController {
 
-    @GetMapping("/")
-    public String home(Model model, HttpSession session) {
-        model.addAttribute("message", "Добро пожаловать в Language Flash!");
+    @GetMapping("/dashboard")
+    public String dashboard(Model model, HttpSession session) {
         User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return "redirect:/"; // Перенаправляем на главную, если пользователь не авторизован
+        }
         model.addAttribute("user", user);
-        return "index";
+        return "dashboard";
     }
 }
