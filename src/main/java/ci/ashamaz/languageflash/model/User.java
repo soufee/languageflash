@@ -32,10 +32,10 @@ public class User {
     private String lastName;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt = LocalDateTime.now(); // Инициализация по умолчанию
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    private LocalDateTime updatedAt = LocalDateTime.now(); // Инициализация по умолчанию
 
     @Column(name = "settings")
     private String settings;
