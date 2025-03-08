@@ -1,25 +1,5 @@
 databaseChangeLog:
-  - changeSet:
-      id: 1
-      author: Ashamaz
-      changes:
-        - createTable:
-            tableName: users
-            columns:
-              - column:
-                  name: id
-                  type: bigint
-                  autoIncrement: true
-                  constraints:
-                    primaryKey: true
-              - column:
-                  name: email
-                  type: varchar(255)
-                  constraints:
-                    nullable: false
-                    unique: true
-              - column:
-                  name: password_hash
-                  type: varchar(255)
-                  constraints:
-                    nullable: false
+  - include:
+      file: db/changelog/db.changelog-1.0.yaml
+  - include:
+      file: db/changelog/db.changelog-2.1.yaml

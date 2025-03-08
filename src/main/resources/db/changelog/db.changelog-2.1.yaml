@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2.1
+      author: soufee
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: first_name
+                  type: varchar(100)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: last_name
+                  type: varchar(100)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: settings
+                  type: text
+                  constraints:
+                    nullable: true
+              - column:
+                  name: role
+                  type: varchar(50)
+                  defaultValue: USER
+                  constraints:
+                    nullable: false
