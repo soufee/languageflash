@@ -14,7 +14,7 @@ services:
       SPRING_MAIL_HOST: smtp.yandex.ru
       SPRING_MAIL_PORT: 465
       SPRING_MAIL_USERNAME: soufee1@yandex.ru
-      SPRING_MAIL_PASSWORD: ywhmzenxrzxakuxq
+      SPRING_MAIL_PASSWORD: qwerty
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: true
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: true
       JWT_SECRET: your-secret-key-here
