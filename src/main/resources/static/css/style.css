@@ -1,0 +1,153 @@
+body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    font-family: 'Arial', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* Стили для админки */
+.admin-section {
+    flex-grow: 1;
+    padding: 10px 0;
+    margin: 0;
+}
+
+.admin-section h1 {
+    font-size: 2rem;
+    color: #343a40;
+    padding: 20px 0;
+    background: #fff;
+    border-bottom: 2px solid #ff6f61;
+}
+
+.nav-tabs {
+    background: #fff;
+    border-bottom: 2px solid #ff6f61;
+}
+
+.nav-tabs .nav-link {
+    color: #343a40;
+    font-weight: 500;
+    border: none;
+    padding: 15px 20px;
+    transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover,
+.nav-tabs .nav-link.active {
+    color: #ff6f61;
+    background: #f8f9fa;
+    border-bottom: 2px solid #ff6f61;
+}
+
+.tab-content {
+    background: #fff;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    min-height: calc(100vh - 200px);
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    background: #f8f9fa;
+    color: #343a40;
+    font-weight: 600;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.table .btn-sm {
+    padding: 4px 10px;
+    font-size: 0.9rem;
+}
+
+.current-admin {
+    background-color: #d4edda;
+    font-weight: bold;
+}
+
+.hero-section {
+    padding: 60px 0;
+    text-align: center;
+    background: linear-gradient(135deg, #2c3e50 0%, #4a677d 100%); /* Тёмно-синий градиент для контраста */
+    color: #fff;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.hero-section h1 {
+    font-size: 3rem;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.hero-section p {
+    font-size: 1.25rem;
+    max-width: 800px;
+    margin: 0 auto 30px;
+}
+
+.btn-get-started {
+    background-color: #ff6f61; /* Вернули оранжевый фон */
+    color: #fff; /* Белый текст для контраста */
+    border: none;
+    padding: 12px 30px;
+    font-size: 1.1rem;
+    transition: background-color 0.3s;
+}
+
+.btn-get-started:hover {
+    background-color: #e65b50; /* Чуть темнее при наведении */
+}
+
+.feature-section {
+    padding: 40px 0;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin: 20px auto;
+    max-width: 900px;
+}
+
+.feature-section h3 {
+    color: #ff6f61;
+    font-weight: bold;
+}
+
+.content-section {
+    padding: 40px 0;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin: 20px auto;
+    max-width: 900px;
+}
+
+.register-form-container {
+    width: 900px;
+    margin: 20px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+footer {
+    background: linear-gradient(90deg, #1a1a1a 0%, #343a40 100%);
+    border-top: 3px solid #ff6f61;
+}
+
+footer a {
+    color: #fff;
+    text-decoration: none;
+}
+
+footer a:hover {
+    color: #ff6f61;
+    transition: color 0.3s;
+}

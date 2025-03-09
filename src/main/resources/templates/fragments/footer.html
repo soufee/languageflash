@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<footer th:fragment="footer" class="bg-dark text-white py-4 mt-auto">
+    <div class="container">
+        <div class="row">
+            <!-- Горизонтальное меню -->
+            <div class="col-md-8">
+                <ul class="nav">
+                    <li class="nav-item"><a th:href="@{/}" class="nav-link text-white">Главная</a></li>
+                    <li class="nav-item"><a th:href="@{/about}" class="nav-link text-white">О нас</a></li>
+                    <li class="nav-item"><a th:href="@{/method}" class="nav-link text-white">О методе</a></li>
+                    <li class="nav-item"><a th:href="@{/contacts}" class="nav-link text-white">Контакты</a></li>
+                    <li class="nav-item"><a th:href="@{/blog}" class="nav-link text-white">Блог</a></li>
+                </ul>
+            </div>
+            <!-- Авторские права -->
+            <div class="col-md-4 text-md-end">
+                <p class="mb-0" style="font-size: 0.8em;">© 2025 Language Flash. Все права защищены.</p>
+            </div>
+        </div>
+    </div>
+</footer>
+</html>

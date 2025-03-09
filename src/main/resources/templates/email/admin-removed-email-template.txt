@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Ваши права администратора сняты</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #333;">
+    <h2 style="color: #ff6f61;">Уважаемый(ая) ${firstName},</h2>
+    <p>Ваши права администратора в Language Flash были сняты.</p>
+    <p>Вы больше не имеете доступа к панели администратора, но можете продолжать использовать сервис как обычный пользователь.</p>
+    <p style="font-size: 0.9em; color: #777;">С уважением,<br>Команда Language Flash<br>Вопросы? Пишите: <a href="mailto:${supportEmail}">${supportEmail}</a></p>
+</body>
+</html>

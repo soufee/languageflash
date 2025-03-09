@@ -3,11 +3,14 @@ package ci.ashamaz.languageflash.service;
 import ci.ashamaz.languageflash.dto.RegisterRequest;
 import ci.ashamaz.languageflash.model.User;
 import ci.ashamaz.languageflash.repository.UserRepository;
-import ci.ashamaz.languageflash.util.JwtUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.FileCopyUtils;
@@ -18,11 +21,13 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Random;
-import java.util.UUID;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 @Service
 public class UserService {
+
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @Autowired
     private UserRepository userRepository;
@@ -41,33 +46,32 @@ public class UserService {
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
 
-    public User registerUser(RegisterRequest request) {
-        String email = request.getEmail().trim(); // Удаляем пробелы
-        if (!EMAIL_PATTERN.matcher(email).matches()) {
+    public void registerUser(RegisterRequest request) {
+        if (!EMAIL_PATTERN.matcher(request.getEmail()).matches()) {
             throw new IllegalArgumentException("Неверный формат email");
         }
-        if (userRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("Email already exists");
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Email уже зарегистрирован");
         }
-
         User user = new User();
-        user.setEmail(email);
+        user.setEmail(request.getEmail());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
-        user.setRole("USER");
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
-        user.setEmailConfirmed(false);
-        user.setConfirmationCode(UUID.randomUUID().toString());
+        user.setRoles(Set.of("USER"));
+        String confirmationCode = generateCode(6);
+        user.setConfirmationCode(confirmationCode);
+        user.setConfirmationCodeExpiry(LocalDateTime.now().plusHours(24));
+        userRepository.save(user);
 
-        User savedUser = userRepository.save(user);
+        String confirmationLink = baseUrl + "/auth/confirm-email?email=" + user.getEmail() + "&code=" + confirmationCode;
+        String htmlContent = createConfirmationEmail(user.getFirstName(), confirmationLink);
         try {
-            sendConfirmationEmail(savedUser);
-        } catch (RuntimeException e) {
-            System.err.println("Не удалось отправить письмо подтверждения: " + e.getMessage());
+            emailService.sendHtmlEmail(request.getEmail(), "Подтверждение регистрации - Language Flash", htmlContent);
+        } catch (Exception e) {
+            logger.error("Ошибка отправки письма подтверждения для {}: {}", request.getEmail(), e.getMessage());
+            throw new RuntimeException("Не удалось отправить письмо подтверждения: " + e.getMessage());
         }
-        return savedUser;
     }
 
     public Optional<User> findByEmail(String email) {
@@ -82,16 +86,17 @@ public class UserService {
         Optional<User> userOptional = userRepository.findByEmail(email);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
-            String resetCode = generateResetCode();
+            String resetCode = generateCode(6);
             user.setResetCode(resetCode);
-            user.setResetCodeExpiry(LocalDateTime.now().plusMinutes(5)); // Уже правильно
+            user.setResetCodeExpiry(LocalDateTime.now().plusMinutes(5));
             userRepository.save(user);
 
             String htmlContent = createResetCodeEmail(user.getFirstName(), resetCode);
             try {
                 emailService.sendHtmlEmail(email, "Восстановление пароля - Language Flash", htmlContent);
             } catch (Exception e) {
-                throw new RuntimeException("Ошибка отправки письма: " + e.getMessage());
+                logger.error("Ошибка отправки письма восстановления для {}: {}", email, e.getMessage());
+                throw new RuntimeException("Не удалось отправить письмо восстановления: " + e.getMessage());
             }
         } else {
             throw new IllegalArgumentException("Пользователь с таким email не найден");
@@ -102,10 +107,8 @@ public class UserService {
         Optional<User> userOptional = userRepository.findByEmail(email);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
-            if (user.getResetCode() != null && user.getResetCode().equals(code) &&
-                    user.getResetCodeExpiry() != null && user.getResetCodeExpiry().isAfter(LocalDateTime.now())) {
-                return true;
-            }
+            return user.getResetCode() != null && user.getResetCode().equals(code) &&
+                    user.getResetCodeExpiry() != null && user.getResetCodeExpiry().isAfter(LocalDateTime.now());
         }
         return false;
     }
@@ -125,17 +128,13 @@ public class UserService {
         }
     }
 
-    public User save(User user) {
-        return userRepository.save(user);
-    }
-
     public boolean confirmEmail(String email, String code) {
         Optional<User> userOptional = userRepository.findByEmail(email);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
             if (user.getConfirmationCode() != null && user.getConfirmationCode().equals(code)) {
                 user.setEmailConfirmed(true);
-                user.setConfirmationCode(null); // Удаляем код после подтверждения
+                user.setConfirmationCode(null);
                 userRepository.save(user);
                 return true;
             }
@@ -143,29 +142,36 @@ public class UserService {
         return false;
     }
 
-    private String generateResetCode() {
+    public Page<User> getAllUsers(Pageable pageable) {
+        return userRepository.findAll(pageable);
+    }
+
+    public Page<User> searchUsersByEmail(String email, Pageable pageable) {
+        return userRepository.findByEmailContainingIgnoreCase(email, pageable);
+    }
+
+    public Optional<User> findById(Long id) {
+        return userRepository.findById(id);
+    }
+
+    public User save(User user) {
+        return userRepository.save(user);
+    }
+
+    private String generateCode(int length) {
         Random random = new Random();
-        return String.format("%06d", random.nextInt(1000000));
+        return String.format("%0" + length + "d", random.nextInt((int) Math.pow(10, length)));
     }
 
     private String createResetCodeEmail(String firstName, String resetCode) {
         try {
             Resource resource = resourceLoader.getResource("classpath:templates/email/reset-password-template.txt");
             String template = FileCopyUtils.copyToString(new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8));
-            return template.replace("${firstName}", firstName).replace("${resetCode}", resetCode);
+            String safeFirstName = firstName != null ? firstName : "Пользователь";
+            return template.replace("${firstName}", safeFirstName).replace("${resetCode}", resetCode);
         } catch (IOException e) {
+            logger.error("Ошибка чтения шаблона письма восстановления: {}", e.getMessage());
             throw new RuntimeException("Ошибка чтения шаблона письма восстановления: " + e.getMessage());
-        }
-    }
-
-    private void sendConfirmationEmail(User user) {
-        String confirmationLink = baseUrl + "/auth/confirm-email?email=" + user.getEmail() +
-                "&code=" + user.getConfirmationCode();
-        String htmlContent = createConfirmationEmail(user.getFirstName(), confirmationLink);
-        try {
-            emailService.sendHtmlEmail(user.getEmail(), "Подтверждение email - Language Flash", htmlContent);
-        } catch (Exception e) {
-            throw new RuntimeException("Ошибка отправки письма подтверждения: " + e.getMessage());
         }
     }
 
@@ -173,8 +179,10 @@ public class UserService {
         try {
             Resource resource = resourceLoader.getResource("classpath:templates/email/confirmation-email-template.txt");
             String template = FileCopyUtils.copyToString(new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8));
-            return template.replace("${firstName}", firstName).replace("${confirmationLink}", confirmationLink);
+            String safeFirstName = firstName != null ? firstName : "Пользователь";
+            return template.replace("${firstName}", safeFirstName).replace("${confirmationLink}", confirmationLink);
         } catch (IOException e) {
+            logger.error("Ошибка чтения шаблона письма подтверждения: {}", e.getMessage());
             throw new RuntimeException("Ошибка чтения шаблона письма подтверждения: " + e.getMessage());
         }
     }

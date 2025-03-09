@@ -1,0 +1,33 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2.6-add-blocked-and-roles
+      author: ashalmaz
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: blocked
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+        - createTable:
+            tableName: user_roles
+            columns:
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user_roles_user_id
+                    references: users(id)
+              - column:
+                  name: role
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+            constraints:
+              - primaryKey:
+                  name: pk_user_roles
+                  columns: user_id, role

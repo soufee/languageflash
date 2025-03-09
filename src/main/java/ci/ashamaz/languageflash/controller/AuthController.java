@@ -23,19 +23,21 @@ public class AuthController {
     private JwtUtil jwtUtil;
 
     @GetMapping("/register")
-    public String showRegistrationForm(Model model) {
+    public String showRegistrationForm(Model model, HttpSession session) {
         model.addAttribute("registerRequest", new RegisterRequest());
+        addAuthAttributes(session, model); // Передаём уведомления
         return "register";
     }
 
     @PostMapping("/register")
-    public String registerUser(@ModelAttribute("registerRequest") RegisterRequest request, Model model) {
+    public String registerUser(@ModelAttribute("registerRequest") RegisterRequest request, Model model, HttpSession session) {
         try {
             userService.registerUser(request);
-            model.addAttribute("message", "Регистрация успешна! Проверьте email для подтверждения.");
-            return "index"; // Перенаправляем на главную страницу
+            session.setAttribute("message", "Регистрация успешна! Проверьте email для подтверждения.");
+            return "redirect:/";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
+            addAuthAttributes(session, model); // Передаём уведомления даже при ошибке
             return "register";
         }
     }
@@ -49,17 +51,16 @@ public class AuthController {
         if (userOptional.isPresent() && userService.checkPassword(userOptional.get(), password)) {
             User user = userOptional.get();
             if (!user.isEmailConfirmed()) {
-                model.addAttribute("loginError", "Подтвердите email перед входом");
-                return "index";
+                session.setAttribute("loginError", "Подтвердите email перед входом");
+                return "redirect:/";
             }
-            String token = jwtUtil.generateToken(email);
+            String token = jwtUtil.generateToken(email, user.getRoles());
             session.setAttribute("token", token);
             session.setAttribute("user", user);
             return "redirect:/dashboard";
         } else {
-            model.addAttribute("loginError", "Неверный email или пароль");
-            model.addAttribute("message", "Добро пожаловать в Language Flash!");
-            return "index";
+            session.setAttribute("loginError", "Неверный email или пароль");
+            return "redirect:/";
         }
     }
 
@@ -70,24 +71,23 @@ public class AuthController {
     }
 
     @GetMapping("/reset-password")
-    public String showResetPasswordForm(Model model) {
-        return "reset-password"; // Должно соответствовать имени файла reset-password.html
+    public String showResetPasswordForm(HttpSession session, Model model) {
+        addAuthAttributes(session, model);
+        return "reset-password";
     }
 
     @PostMapping("/reset-password/request")
-    public String requestResetPassword(@RequestParam("email") String email, Model model) {
+    public String requestResetPassword(@RequestParam("email") String email, Model model, HttpSession session) {
         try {
             userService.sendResetCode(email);
+            model.addAttribute("email", email);
+            model.addAttribute("message", "Код отправлен на ваш email");
             Optional<User> userOptional = userService.findByEmail(email);
-            if (userOptional.isPresent()) {
-                User user = userOptional.get();
-                model.addAttribute("email", email);
-                model.addAttribute("expiryTime", user.getResetCodeExpiry()); // Передаём время истечения
-                model.addAttribute("message", "Код отправлен на ваш email");
-            }
+            userOptional.ifPresent(user -> model.addAttribute("expiryTime", user.getResetCodeExpiry()));
             return "reset-password-code";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
+            addAuthAttributes(session, model); // Передаём уведомления
             return "reset-password";
         }
     }
@@ -96,14 +96,16 @@ public class AuthController {
     public String verifyResetCode(@RequestParam("email") String email,
                                   @RequestParam("code") String code,
                                   @RequestParam("newPassword") String newPassword,
-                                  Model model) {
+                                  Model model,
+                                  HttpSession session) {
         try {
             userService.resetPassword(email, code, newPassword);
-            model.addAttribute("message", "Пароль успешно изменён. Войдите с новым паролем.");
-            return "index";
+            session.setAttribute("message", "Пароль успешно изменён. Войдите с новым паролем.");
+            return "redirect:/";
         } catch (IllegalArgumentException e) {
             model.addAttribute("email", email);
             model.addAttribute("error", e.getMessage());
+            addAuthAttributes(session, model); // Передаём уведомления
             return "reset-password-code";
         }
     }
@@ -111,13 +113,27 @@ public class AuthController {
     @GetMapping("/confirm-email")
     public String confirmEmail(@RequestParam("email") String email,
                                @RequestParam("code") String code,
-                               Model model) {
+                               Model model,
+                               HttpSession session) {
         if (userService.confirmEmail(email, code)) {
-            model.addAttribute("message", "Email успешно подтверждён. Теперь вы можете войти.");
-            return "index";
+            session.setAttribute("message", "Email успешно подтверждён. Теперь вы можете войти.");
+            return "redirect:/";
         } else {
-            model.addAttribute("error", "Неверный или просроченный код подтверждения");
-            return "index";
+            session.setAttribute("error", "Неверный или просроченный код подтверждения");
+            return "redirect:/";
+        }
+    }
+
+    private void addAuthAttributes(HttpSession session, Model model) {
+        Object loginError = session.getAttribute("loginError");
+        if (loginError != null) {
+            model.addAttribute("loginError", loginError);
+            session.removeAttribute("loginError");
+        }
+        Object message = session.getAttribute("message");
+        if (message != null) {
+            model.addAttribute("message", message);
+            session.removeAttribute("message");
         }
     }
 }

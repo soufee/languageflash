@@ -36,16 +36,14 @@ public class SecurityConfig {
                 .csrf().disable()
                 .authorizeRequests()
                 .antMatchers(
-                        "/",
-                        "/auth/register",
-                        "/auth/login",
-                        "/auth/logout",
-                        "/auth/confirm-email",         // Разрешаем подтверждение email
-                        "/auth/reset-password",        // Страница восстановления
-                        "/auth/reset-password/request", // Запрос кода
-                        "/auth/reset-password/verify",  // Проверка кода и смена пароля
-                        "/error"
+                        "/", "/about", "/method", "/contacts", "/blog",
+                        "/auth/register", "/auth/login", "/auth/logout",
+                        "/auth/confirm-email", "/auth/reset-password",
+                        "/auth/reset-password/request", "/auth/reset-password/verify",
+                        "/css/**", "/js/**", "/images/**", "/static/**" // Явно разрешаем все статические ресурсы
                 ).permitAll()
+                .antMatchers("/admin/**").hasRole("ADMIN")
+                .antMatchers("/dashboard").authenticated()
                 .anyRequest().authenticated()
                 .and()
                 .exceptionHandling()

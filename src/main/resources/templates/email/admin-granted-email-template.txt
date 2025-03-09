@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Вам предоставлены права администратора</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #333;">
+    <h2 style="color: #ff6f61;">Уважаемый(ая) ${firstName},</h2>
+    <p>Вам были предоставлены права администратора в Language Flash.</p>
+    <p>Теперь вы можете управлять пользователями и настройками через <a href="http://localhost:8087/admin">панель администратора</a>.</p>
+    <p style="font-size: 0.9em; color: #777;">С уважением,<br>Команда Language Flash<br>Вопросы? Пишите: <a href="mailto:${supportEmail}">${supportEmail}</a></p>
+</body>
+</html>

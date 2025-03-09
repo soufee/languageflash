@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Ваш аккаунт заблокирован</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #333;">
+    <h2 style="color: #ff6f61;">Уважаемый(ая) ${firstName},</h2>
+    <p>Ваш аккаунт в Language Flash был заблокирован администратором.</p>
+    <p>Вы больше не можете использовать сервис. Если у вас есть вопросы, свяжитесь с нами: <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+    <p style="font-size: 0.9em; color: #777;">С уважением,<br>Команда Language Flash</p>
+</body>
+</html>
