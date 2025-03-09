@@ -35,11 +35,21 @@ public class SecurityConfig {
         http
                 .csrf().disable()
                 .authorizeRequests()
-                .antMatchers("/", "/auth/register", "/auth/login", "/auth/logout", "/error").permitAll()
+                .antMatchers(
+                        "/",
+                        "/auth/register",
+                        "/auth/login",
+                        "/auth/logout",
+                        "/auth/confirm-email",         // Разрешаем подтверждение email
+                        "/auth/reset-password",        // Страница восстановления
+                        "/auth/reset-password/request", // Запрос кода
+                        "/auth/reset-password/verify",  // Проверка кода и смена пароля
+                        "/error"
+                ).permitAll()
                 .anyRequest().authenticated()
                 .and()
                 .exceptionHandling()
-                .accessDeniedPage("/error") // Перенаправление на /error при 403
+                .accessDeniedPage("/error")
                 .and()
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();

@@ -16,7 +16,10 @@
                 <input type="password" class="form-control form-control-sm me-1" name="password" placeholder="Пароль" required>
                 <button type="submit" class="btn btn-primary btn-sm">Войти</button>
             </form>
-            <a th:href="@{/auth/register}" class="btn btn-outline-primary btn-sm" style="font-size: 0.67em;">Регистрация</a>
+            <div class="d-flex flex-column align-items-start">
+                <a th:href="@{/auth/register}" class="btn btn-outline-primary btn-sm" style="font-size: 0.67em;">Регистрация</a>
+                <a th:href="@{/auth/reset-password}" class="text-muted mt-1" style="font-size: 0.67em;">Забыли пароль?</a>
+            </div>
         </div>
 
         <!-- Если пользователь авторизован -->
@@ -28,5 +31,10 @@
         </div>
     </div>
 </nav>
+
+<!-- Уведомление о неподтверждённом email -->
+<div th:if="${user and !user.isEmailConfirmed}" class="alert alert-danger text-center m-0">
+    Подтвердите ваш email, чтобы получить полный доступ. <a th:href="@{/auth/reset-password}" class="alert-link">Отправить письмо повторно</a>
+</div>
 </body>
 </html>

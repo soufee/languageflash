@@ -19,11 +19,13 @@ public class CustomErrorController implements ErrorController {
             int statusCode = Integer.parseInt(status.toString());
 
             if (statusCode == HttpStatus.NOT_FOUND.value()) {
-                return "error/404"; // Страница 404
+                return "error/404"; // Страница 404 для несуществующих путей
             } else if (statusCode == HttpStatus.FORBIDDEN.value()) {
-                return "error/403"; // Страница 403
+                return "error/403"; // Страница 403 для доступа без авторизации
             }
         }
-        return "error"; // Общая страница ошибки
+        // Для всех остальных ошибок (включая null status)
+        model.addAttribute("error", "Произошла непредвиденная ошибка");
+        return "error/general"; // Общая страница ошибки
     }
 }

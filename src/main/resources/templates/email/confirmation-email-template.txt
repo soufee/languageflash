@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        a { display: inline-block; padding: 10px 20px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 5px; }
+        p { color: #666; }
+        .footer { font-size: 12px; color: #999; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Подтверждение email</h1>
+        <p>Здравствуйте, ${firstName}!</p>
+        <p>Спасибо за регистрацию в Language Flash. Чтобы подтвердить ваш email, перейдите по ссылке ниже:</p>
+        <p><a href="${confirmationLink}">Подтвердить email</a></p>
+        <p>Если вы не регистрировались, проигнорируйте это письмо.</p>
+        <div class="footer">© 2025 Language Flash. Все права защищены.</div>
+    </div>
+</body>
+</html>

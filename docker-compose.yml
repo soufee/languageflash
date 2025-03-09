@@ -11,3 +11,10 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_LIQUIBASE_CHANGE_LOG: classpath:db/changelog/db.changelog-master.yaml
       SERVER_PORT: 8087
+      SPRING_MAIL_HOST: smtp.yandex.ru
+      SPRING_MAIL_PORT: 465
+      SPRING_MAIL_USERNAME: soufee1@yandex.ru
+      SPRING_MAIL_PASSWORD: ywhmzenxrzxakuxq
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: true
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: true
+      JWT_SECRET: your-secret-key-here

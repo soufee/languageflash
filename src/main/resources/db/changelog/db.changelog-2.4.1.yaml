@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2.4.1
+      author: soufee
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: confirmation_code
+                  type: varchar(36)  # Длина кода, например, UUID или другой формат

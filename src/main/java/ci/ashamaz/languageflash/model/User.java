@@ -32,14 +32,26 @@ public class User {
     private String lastName;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now(); // Инициализация по умолчанию
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt = LocalDateTime.now(); // Инициализация по умолчанию
+    private LocalDateTime updatedAt = LocalDateTime.now();
 
     @Column(name = "settings")
     private String settings;
 
     @Column(name = "role", nullable = false)
     private String role;
+
+    @Column(name = "is_email_confirmed", nullable = false)
+    private boolean isEmailConfirmed = false;
+
+    @Column(name = "reset_code")
+    private String resetCode;
+
+    @Column(name = "reset_code_expiry")
+    private LocalDateTime resetCodeExpiry;
+
+    @Column(name = "confirmation_code")
+    private String confirmationCode; // Новое поле для кода подтверждения
 }
