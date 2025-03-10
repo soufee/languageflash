@@ -1,0 +1,89 @@
+databaseChangeLog:
+  - changeSet:
+      id: 3.1-create-languages-table
+      author: ashalmaz
+      changes:
+        - createTable:
+            tableName: languages
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: name
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: active
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+  - changeSet:
+      id: 3.1-create-programs-table
+      author: ashalmaz
+      changes:
+        - createTable:
+            tableName: programs
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_programs_user_id
+                    references: users(id)
+              - column:
+                  name: language_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_programs_language_id
+                    references: languages(id)
+              - column:
+                  name: level
+                  type: varchar(2)
+                  constraints:
+                    nullable: false
+  - changeSet:
+      id: 3.1-create-language-levels-table
+      author: ashalmaz
+      changes:
+        - createTable:
+            tableName: language_levels
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: language_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_language_levels_language_id
+                    references: languages(id)
+              - column:
+                  name: level
+                  type: varchar(2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: active
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false

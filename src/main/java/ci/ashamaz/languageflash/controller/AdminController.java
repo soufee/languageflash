@@ -1,10 +1,11 @@
 package ci.ashamaz.languageflash.controller;
 
+import ci.ashamaz.languageflash.model.Level;
 import ci.ashamaz.languageflash.model.User;
 import ci.ashamaz.languageflash.service.EmailService;
+import ci.ashamaz.languageflash.service.LanguageService;
 import ci.ashamaz.languageflash.service.UserService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -22,19 +23,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.mail.MessagingException;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 @Controller
 @RequestMapping("/admin")
 @PreAuthorize("hasRole('ADMIN')")
+@Slf4j
 public class AdminController {
-
-    private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private LanguageService languageService;
 
     @Autowired
     private EmailService emailService;
@@ -44,13 +45,14 @@ public class AdminController {
 
     @GetMapping
     public String adminRedirect() {
-        return "redirect:/admin/users";
+        return "redirect:/admin/languages"; // По умолчанию на языки
     }
 
     @GetMapping("/users")
     public String listUsers(@RequestParam(defaultValue = "0") int page,
                             @RequestParam(defaultValue = "10") int size,
                             Model model) {
+        log.info("Handling GET /admin/users");
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String currentEmail = auth.getName();
         Optional<User> currentUserOptional = userService.findByEmail(currentEmail);
@@ -60,7 +62,8 @@ public class AdminController {
         model.addAttribute("users", userPage.getContent());
         model.addAttribute("page", userPage);
         model.addAttribute("currentUserId", currentUserOptional.map(User::getId).orElse(null));
-        return "admin";
+        log.debug("Loaded {} users", userPage.getTotalElements());
+        return "userList";
     }
 
     @GetMapping("/users/search")
@@ -68,6 +71,7 @@ public class AdminController {
                               @RequestParam(defaultValue = "0") int page,
                               @RequestParam(defaultValue = "10") int size,
                               Model model) {
+        log.info("Handling GET /admin/users/search with email={}", email);
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String currentEmail = auth.getName();
         Optional<User> currentUserOptional = userService.findByEmail(currentEmail);
@@ -77,7 +81,7 @@ public class AdminController {
         model.addAttribute("users", userPage.getContent());
         model.addAttribute("page", userPage);
         model.addAttribute("currentUserId", currentUserOptional.map(User::getId).orElse(null));
-        return "admin";
+        return "userList";
     }
 
     @PostMapping("/users/block")
@@ -100,7 +104,7 @@ public class AdminController {
                 try {
                     java.io.InputStream templateStream = this.getClass().getResourceAsStream(templatePath);
                     if (templateStream == null) {
-                        logger.error("Шаблон email не найден: {}", templatePath);
+                        log.error("Шаблон email не найден: {}", templatePath);
                         return "redirect:/admin/users";
                     }
                     String content = new String(templateStream.readAllBytes());
@@ -111,12 +115,12 @@ public class AdminController {
                             user.isBlocked() ? "Ваш аккаунт заблокирован" : "Ваш аккаунт разблокирован",
                             content);
                 } catch (IOException e) {
-                    logger.error("Ошибка чтения шаблона email для {}: {}", user.getEmail(), e.getMessage());
+                    log.error("Ошибка чтения шаблона email для {}: {}", user.getEmail(), e.getMessage());
                 } catch (MessagingException e) {
-                    logger.error("Ошибка отправки email для {}: {}", user.getEmail(), e.getMessage());
+                    log.error("Ошибка отправки email для {}: {}", user.getEmail(), e.getMessage());
                 }
             } else {
-                logger.warn("Попытка заблокировать самого себя: {}", currentEmail);
+                log.warn("Попытка заблокировать самого себя: {}", currentEmail);
             }
         }
         return "redirect:/admin/users";
@@ -148,7 +152,7 @@ public class AdminController {
                 try {
                     java.io.InputStream templateStream = this.getClass().getResourceAsStream(templatePath);
                     if (templateStream == null) {
-                        logger.error("Шаблон email не найден: {}", templatePath);
+                        log.error("Шаблон email не найден: {}", templatePath);
                         return "redirect:/admin/users";
                     }
                     String content = new String(templateStream.readAllBytes());
@@ -159,14 +163,70 @@ public class AdminController {
                             user.getRoles().contains("ADMIN") ? "Вам предоставлены права администратора" : "Ваши права администратора сняты",
                             content);
                 } catch (IOException e) {
-                    logger.error("Ошибка чтения шаблона email для {}: {}", user.getEmail(), e.getMessage());
+                    log.error("Ошибка чтения шаблона email для {}: {}", user.getEmail(), e.getMessage());
                 } catch (MessagingException e) {
-                    logger.error("Ошибка отправки email для {}: {}", user.getEmail(), e.getMessage());
+                    log.error("Ошибка отправки email для {}: {}", user.getEmail(), e.getMessage());
                 }
             } else {
-                logger.warn("Попытка изменить свои роли: {}", currentEmail);
+                log.warn("Попытка изменить свои роли: {}", currentEmail);
             }
         }
         return "redirect:/admin/users";
+    }
+
+    @GetMapping("/languages")
+    public String listLanguages(Model model) {
+        log.info("Handling GET /admin/languages");
+        var languages = languageService.getAllLanguages();
+        Map<Long, Map<Level, Boolean>> languageLevelsMap = new HashMap<>();
+        for (var language : languages) {
+            var levels = languageService.getLevelsForLanguage(language.getId());
+            Map<Level, Boolean> levelActiveMap = new HashMap<>();
+            for (var level : levels) {
+                levelActiveMap.put(level.getLevel(), level.isActive());
+            }
+            languageLevelsMap.put(language.getId(), levelActiveMap);
+        }
+        log.info("Loaded {} languages with levels: {}", languages.size(), languageLevelsMap);
+        model.addAttribute("languages", languages);
+        model.addAttribute("levels", Level.values());
+        model.addAttribute("languageLevelsMap", languageLevelsMap);
+        return "languages";
+    }
+
+    @PostMapping("/languages")
+    public String addLanguage(@RequestParam("name") String name, Model model) {
+        log.info("Handling POST /admin/languages with name={}", name);
+        try {
+            languageService.addLanguage(name);
+            return "redirect:/admin/languages";
+        } catch (IllegalArgumentException e) {
+            log.warn("Failed to add language: {}", e.getMessage());
+            model.addAttribute("error", e.getMessage());
+            return listLanguages(model);
+        }
+    }
+
+    @PostMapping("/languages/update")
+    public String updateLanguage(@RequestParam("languageId") Long languageId,
+                                 @RequestParam("name") String name,
+                                 @RequestParam(value = "active", defaultValue = "false") boolean active) {
+        languageService.updateLanguage(languageId, name, active);
+        return "redirect:/admin/languages";
+    }
+
+    @PostMapping("/languages/levels/update")
+    public String updateLanguageLevel(@RequestParam("languageId") Long languageId,
+                                      @RequestParam("level") Level level,
+                                      @RequestParam(value = "active", defaultValue = "false") boolean active) {
+        log.info("Updating level for languageId={}, level={}, active={}", languageId, level, active);
+        languageService.updateLanguageLevel(languageId, level, active);
+        return "redirect:/admin/languages";
+    }
+
+    @GetMapping("/dictionaries")
+    public String listDictionaries(Model model) {
+        log.info("Handling GET /admin/dictionaries");
+        return "dictionaries";
     }
 }
