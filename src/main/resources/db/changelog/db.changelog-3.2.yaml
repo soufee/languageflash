@@ -1,0 +1,141 @@
+databaseChangeLog:
+  - changeSet:
+      id: 3.2-create-words-table
+      author: ashalmaz
+      changes:
+        - createTable:
+            tableName: words
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: word
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: translation
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: example_sentence
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: example_translation
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: language_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_words_language_id
+                    references: languages(id)
+  - changeSet:
+      id: 3.2-create-dictionaries-table
+      author: ashalmaz
+      changes:
+        - createTable:
+            tableName: dictionaries
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: name
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: language_level_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_dictionaries_language_level_id
+                    references: language_levels(id)
+              - column:
+                  name: theme
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+  - changeSet:
+      id: 3.2-create-word-dictionary-table
+      author: ashalmaz
+      changes:
+        - createTable:
+            tableName: word_dictionary
+            columns:
+              - column:
+                  name: word_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_word_dictionary_word_id
+                    references: words(id)
+              - column:
+                  name: dictionary_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_word_dictionary_dictionary_id
+                    references: dictionaries(id)
+            constraints:
+              - primaryKey:
+                  name: pk_word_dictionary
+                  columns: word_id, dictionary_id
+  - changeSet:
+      id: 3.2-update-programs-table
+      author: ashalmaz
+      changes:
+        - dropColumn:
+            tableName: programs
+            columnName: language_id
+        - dropColumn:
+            tableName: programs
+            columnName: level
+        - addColumn:
+            tableName: programs
+            columns:
+              - column:
+                  name: language_level_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_programs_language_level_id
+                    references: language_levels(id)
+  - changeSet:
+      id: 3.2-create-program-dictionary-table
+      author: ashalmaz
+      changes:
+        - createTable:
+            tableName: program_dictionary
+            columns:
+              - column:
+                  name: program_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_program_dictionary_program_id
+                    references: programs(id)
+              - column:
+                  name: dictionary_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_program_dictionary_dictionary_id
+                    references: dictionaries(id)
+            constraints:
+              - primaryKey:
+                  name: pk_program_dictionary
+                  columns: program_id, dictionary_id

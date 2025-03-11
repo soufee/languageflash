@@ -84,4 +84,9 @@ public class LanguageService {
         languageLevelRepository.save(languageLevel);
         log.info("Updated level {} for language {}: active = {}", level, languageId, active);
     }
+
+    public List<LanguageLevel> getAllLevels() {
+        log.info("Retrieving all language levels");
+        return languageLevelRepository.findAll();
+    }
 }

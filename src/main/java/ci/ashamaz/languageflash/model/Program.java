@@ -3,6 +3,8 @@ package ci.ashamaz.languageflash.model;
 import lombok.Data;
 
 import javax.persistence.*;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "programs")
@@ -17,10 +19,14 @@ public class Program {
     private User user;
 
     @ManyToOne
-    @JoinColumn(name = "language_id", nullable = false)
-    private Language language;
+    @JoinColumn(name = "language_level_id", nullable = false)
+    private LanguageLevel languageLevel;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Level level;
+    @ManyToMany
+    @JoinTable(
+            name = "program_dictionary",
+            joinColumns = @JoinColumn(name = "program_id"),
+            inverseJoinColumns = @JoinColumn(name = "dictionary_id")
+    )
+    private Set<Dictionary> dictionaries = new HashSet<>();
 }

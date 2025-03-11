@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.FileCopyUtils;
 
 import java.io.IOException;
@@ -72,10 +73,6 @@ public class UserService {
             logger.error("Ошибка отправки письма подтверждения для {}: {}", request.getEmail(), e.getMessage());
             throw new RuntimeException("Не удалось отправить письмо подтверждения: " + e.getMessage());
         }
-    }
-
-    public Optional<User> findByEmail(String email) {
-        return userRepository.findByEmail(email);
     }
 
     public boolean checkPassword(User user, String rawPassword) {
@@ -142,20 +139,31 @@ public class UserService {
         return false;
     }
 
+
     public Page<User> getAllUsers(Pageable pageable) {
         return userRepository.findAll(pageable);
-    }
-
-    public Page<User> searchUsersByEmail(String email, Pageable pageable) {
-        return userRepository.findByEmailContainingIgnoreCase(email, pageable);
     }
 
     public Optional<User> findById(Long id) {
         return userRepository.findById(id);
     }
 
-    public User save(User user) {
-        return userRepository.save(user);
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
+    public Page<User> searchUsersByEmail(String email, Pageable pageable) {
+        return userRepository.findByEmailContainingIgnoreCase(email, pageable);
+    }
+
+    @Transactional
+    public void save(User user) {
+        userRepository.save(user);
+    }
+
+    public User getUserById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Пользователь с ID " + id + " не найден"));
     }
 
     private String generateCode(int length) {
@@ -165,7 +173,7 @@ public class UserService {
 
     private String createResetCodeEmail(String firstName, String resetCode) {
         try {
-            Resource resource = resourceLoader.getResource("classpath:templates/email/reset-password-template.txt");
+            Resource resource = resourceLoader.getResource("classpath:templates/email/reset-password-template.html");
             String template = FileCopyUtils.copyToString(new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8));
             String safeFirstName = firstName != null ? firstName : "Пользователь";
             return template.replace("${firstName}", safeFirstName).replace("${resetCode}", resetCode);
@@ -177,7 +185,7 @@ public class UserService {
 
     private String createConfirmationEmail(String firstName, String confirmationLink) {
         try {
-            Resource resource = resourceLoader.getResource("classpath:templates/email/confirmation-email-template.txt");
+            Resource resource = resourceLoader.getResource("classpath:templates/email/confirmation-email-template.html");
             String template = FileCopyUtils.copyToString(new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8));
             String safeFirstName = firstName != null ? firstName : "Пользователь";
             return template.replace("${firstName}", safeFirstName).replace("${confirmationLink}", confirmationLink);

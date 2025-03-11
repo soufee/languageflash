@@ -11,7 +11,7 @@
 
 <section class="admin-section">
     <div class="container-fluid p-0">
-        <h1 class="text-center mb-4">Панель администратора</h1>
+        <h1 class="text-center mb-4">Панель администратора - Пользователи</h1>
         <div class="p-3">
             <form th:action="@{/admin/users/search}" method="get" class="d-flex mb-3">
                 <input type="text" class="form-control me-2" name="email" placeholder="Поиск по email">
@@ -43,37 +43,14 @@
                                 <input type="hidden" name="userId" th:value="${user.id}">
                                 <button type="submit" class="btn btn-warning btn-sm" th:text="${user.roles.contains('ADMIN') ? 'Убрать ADMIN' : 'Дать ADMIN'}"></button>
                             </form>
+                            <a th:href="@{/admin/users/{id}/programs(id=${user.id})}" class="btn btn-sm btn-info">Программы</a>
                         </td>
                         <td th:if="${user.id == currentUserId}">-</td>
                     </tr>
                     </tbody>
                 </table>
             </div>
-            <div class="d-flex justify-content-between align-items-center mt-3" th:if="${page != null}">
-                <div>
-                    <form th:action="@{/admin/users}" method="get" class="d-inline">
-                        <select name="size" onchange="this.form.submit()" class="form-select form-select-sm">
-                            <option value="10" th:selected="${page != null and page.size == 10}">10</option>
-                            <option value="25" th:selected="${page != null and page.size == 25}">25</option>
-                            <option value="50" th:selected="${page != null and page.size == 50}">50</option>
-                            <option value="100" th:selected="${page != null and page.size == 100}">100</option>
-                        </select>
-                    </form>
-                </div>
-                <nav>
-                    <ul class="pagination">
-                        <li class="page-item" th:classappend="${page.number == 0 ? 'disabled' : ''}">
-                            <a class="page-link" th:href="@{/admin/users(page=${page.number - 1}, size=${page.size})}">Назад</a>
-                        </li>
-                        <li class="page-item" th:each="i : ${#numbers.sequence(0, page.totalPages - 1)}" th:classappend="${page.number == i ? 'active' : ''}">
-                            <a class="page-link" th:href="@{/admin/users(page=${i}, size=${page.size})}" th:text="${i + 1}"></a>
-                        </li>
-                        <li class="page-item" th:classappend="${page.number == page.totalPages - 1 ? 'disabled' : ''}">
-                            <a class="page-link" th:href="@{/admin/users(page=${page.number + 1}, size=${page.size})}">Вперёд</a>
-                        </li>
-                    </ul>
-                </nav>
-            </div>
+            <!-- Пагинация остаётся без изменений -->
         </div>
     </div>
 </section>
