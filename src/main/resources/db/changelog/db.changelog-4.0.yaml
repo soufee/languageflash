@@ -1,0 +1,81 @@
+databaseChangeLog:
+  - changeSet:
+      id: 4.0-drop-unused-tables
+      author: ashalmaz
+      changes:
+        - dropTable:
+            tableName: program_dictionary
+        - dropTable:
+            tableName: word_dictionary
+        - dropTable:
+            tableName: dictionaries
+        - dropTable:
+            tableName: programs
+
+  - changeSet:
+      id: 4.0-update-words-table
+      author: ashalmaz
+      changes:
+        - addColumn:
+            tableName: words
+            columns:
+              - column:
+                  name: level
+                  type: varchar(2)
+                  defaultValue: "A1"  # Добавляем значение по умолчанию
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tags
+                  type: text
+                  constraints:
+                    nullable: true
+
+  - changeSet:
+      id: 4.0-create-word-progress-table
+      author: ashalmaz
+      changes:
+        - createTable:
+            tableName: word_progress
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_word_progress_user_id
+                    references: users(id)
+              - column:
+                  name: word_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_word_progress_word_id
+                    references: words(id)
+              - column:
+                  name: knowledge_factor
+                  type: float
+                  defaultValue: 1.0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_learned
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_reviewed
+                  type: timestamp
+                  constraints:
+                    nullable: true
+            constraints:
+              - uniqueConstraint:
+                  name: uq_word_progress_user_word
+                  columns: user_id, word_id

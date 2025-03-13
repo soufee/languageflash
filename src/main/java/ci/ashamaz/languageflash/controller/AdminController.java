@@ -1,28 +1,26 @@
 package ci.ashamaz.languageflash.controller;
 
-import ci.ashamaz.languageflash.dto.DictionaryDTO;
 import ci.ashamaz.languageflash.model.*;
-import ci.ashamaz.languageflash.model.Dictionary;
+import ci.ashamaz.languageflash.repository.WordRepository;
 import ci.ashamaz.languageflash.service.*;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.mail.MessagingException;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/admin")
@@ -37,11 +35,9 @@ public class AdminController {
     @Autowired
     private LanguageLevelService languageLevelService;
     @Autowired
-    private DictionaryService dictionaryService;
-    @Autowired
     private WordService wordService;
     @Autowired
-    private ProgramService programService;
+    private WordRepository wordRepository;
     @Autowired
     private EmailService emailService;
 
@@ -59,7 +55,7 @@ public class AdminController {
                             Model model) {
         log.info("Handling GET /admin/users");
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String currentEmail = auth.getName();
+        String currentEmail = auth != null ? auth.getName() : "unknown";
         Optional<User> currentUserOptional = userService.findByEmail(currentEmail);
 
         Pageable pageable = PageRequest.of(page, size);
@@ -78,7 +74,7 @@ public class AdminController {
                               Model model) {
         log.info("Handling GET /admin/users/search with email={}", email);
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String currentEmail = auth.getName();
+        String currentEmail = auth != null ? auth.getName() : "unknown";
         Optional<User> currentUserOptional = userService.findByEmail(currentEmail);
 
         Pageable pageable = PageRequest.of(page, size);
@@ -92,7 +88,7 @@ public class AdminController {
     @PostMapping("/users/block")
     public String blockUser(@RequestParam("userId") Long userId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String currentEmail = auth.getName();
+        String currentEmail = auth != null ? auth.getName() : "unknown";
         Optional<User> currentUserOptional = userService.findByEmail(currentEmail);
 
         Optional<User> userOptional = userService.findById(userId);
@@ -132,7 +128,7 @@ public class AdminController {
     @PostMapping("/users/toggle-admin")
     public String toggleAdmin(@RequestParam("userId") Long userId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String currentEmail = auth.getName();
+        String currentEmail = auth != null ? auth.getName() : "unknown";
         Optional<User> currentUserOptional = userService.findByEmail(currentEmail);
 
         Optional<User> userOptional = userService.findById(userId);
@@ -225,96 +221,95 @@ public class AdminController {
         return "redirect:/admin/languages";
     }
 
-    @GetMapping("/dictionaries")
-    public String dictionaries(Model model) {
-        Map<Language, Map<String, List<DictionaryDTO>>> dictionariesByLanguage = dictionaryService.getDictionariesByLanguage();
-        model.addAttribute("dictionariesByLanguage", dictionariesByLanguage);
-        model.addAttribute("languageLevels", languageService.getAllLevels());
-        return "dictionaries";
-    }
+    @GetMapping("/words")
+    public String listWords(@RequestParam(defaultValue = "0") int page,
+                            @RequestParam(defaultValue = "10") int size,
+                            @RequestParam(value = "wordFilter", required = false) String wordFilter,
+                            @RequestParam(value = "translationFilter", required = false) String translationFilter,
+                            Model model) {
+        log.info("Handling GET /admin/words with wordFilter={}, translationFilter={}", wordFilter, translationFilter);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("level").ascending().and(Sort.by("word").ascending()));
 
-    @PostMapping("/dictionaries/add")
-    public String addDictionary(@RequestParam String name, @RequestParam Long languageLevelId, @RequestParam String theme) {
-        dictionaryService.addDictionary(name, languageLevelId, theme);
-        return "redirect:/admin/dictionaries";
-    }
-
-    @PostMapping("/dictionaries/upload")
-    public String uploadDictionary(@RequestParam("file") MultipartFile file, Model model) {
-        log.info("Uploading dictionary JSON file: {}", file.getOriginalFilename());
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            Map<String, Object> jsonData = mapper.readValue(file.getInputStream(), new TypeReference<>() {});
-
-            Map<String, String> dictionaryData = (Map<String, String>) jsonData.get("dictionary");
-            String name = dictionaryData.get("name");
-            Long languageId = Long.parseLong(dictionaryData.get("languageId"));
-            String levelStr = dictionaryData.get("level");
-            String theme = dictionaryData.get("theme");
-            Level level = Level.valueOf(levelStr);
-
-            LanguageLevel languageLevel = languageLevelService.getLanguageLevelByLanguageAndLevel(languageId, level);
-            Dictionary dictionary = dictionaryService.addDictionary(name, languageLevel.getId(), theme);
-
-            List<Map<String, String>> wordsData = (List<Map<String, String>>) jsonData.get("words");
-            for (Map<String, String> wordData : wordsData) {
-                Word word = wordService.addWord(
-                        wordData.get("word"),
-                        wordData.get("translation"),
-                        wordData.get("exampleSentence"),
-                        wordData.get("exampleTranslation"),
-                        languageId
-                );
-                dictionaryService.addWordToDictionary(dictionary.getId(), word.getId()); // Исправлено
-            }
-            return "redirect:/admin/dictionaries";
-        } catch (Exception e) {
-            log.error("Failed to upload dictionary: {}", e.getMessage());
-            model.addAttribute("error", "Ошибка при загрузке файла: " + e.getMessage());
-            return "dictionaries";
+        Page<Word> wordsPage;
+        if (wordFilter != null && !wordFilter.isEmpty() && translationFilter != null && !translationFilter.isEmpty()) {
+            wordsPage = wordRepository.findByWordStartingWithAndTranslationStartingWith(wordFilter, translationFilter, pageable);
+        } else if (wordFilter != null && !wordFilter.isEmpty()) {
+            wordsPage = wordRepository.findByWordStartingWith(wordFilter, pageable);
+        } else if (translationFilter != null && !translationFilter.isEmpty()) {
+            wordsPage = wordRepository.findByTranslationStartingWith(translationFilter, pageable);
+        } else {
+            wordsPage = wordRepository.findAll(pageable);
         }
-    }
 
-    @GetMapping("/dictionaries/{id}/words")
-    public String dictionaryWords(@PathVariable Long id, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, Model model) {
-        Dictionary dictionary = dictionaryService.getDictionary(id);
-        Page<Word> wordsPage = dictionaryService.getWordsInDictionary(id, page, size);
-        model.addAttribute("dictionary", dictionary);
+        Map<Long, String> wordTagsMap = new HashMap<>();
+        Map<Long, String> wordTagNamesMap = new HashMap<>();
+        wordsPage.getContent().forEach(word -> {
+            Set<Tag> tags = word.getTagsAsSet();
+            String tagsRussianString = tags != null && !tags.isEmpty()
+                    ? tags.stream().map(Tag::getRussianName).collect(Collectors.joining(", "))
+                    : "";
+            String tagsNamesString = tags != null && !tags.isEmpty()
+                    ? tags.stream().map(Tag::name).collect(Collectors.joining(","))
+                    : "";
+            wordTagsMap.put(word.getId(), tagsRussianString);
+            wordTagNamesMap.put(word.getId(), tagsNamesString);
+        });
+
         model.addAttribute("wordsPage", wordsPage);
-        model.addAttribute("allWords", wordService.getAllWords());
-        return "dictionaryWords";
+        model.addAttribute("languages", languageService.getAllLanguages());
+        model.addAttribute("levels", Level.values());
+        model.addAttribute("tags", Tag.values());
+        model.addAttribute("wordTagsMap", wordTagsMap);
+        model.addAttribute("wordTagNamesMap", wordTagNamesMap);
+        model.addAttribute("wordFilter", wordFilter); // Для сохранения значения фильтра в форме
+        model.addAttribute("translationFilter", translationFilter); // Для сохранения значения фильтра в форме
+
+        return "adminWords";
     }
 
-    @PostMapping("/dictionaries/{id}/words/add")
-    public String addWordToDictionary(@PathVariable Long id, @RequestParam Long wordId) {
-        dictionaryService.addWordToDictionary(id, wordId);
-        return "redirect:/admin/dictionaries/{id}/words";
-    }
-
-    @PostMapping("/dictionaries/{id}/words/remove")
-    public String removeWordFromDictionary(@PathVariable Long id, @RequestParam Long wordId) {
-        dictionaryService.removeWordFromDictionary(id, wordId);
-        return "redirect:/admin/dictionaries/{id}/words";
-    }
-
-    @PostMapping("/words")
+    @PostMapping("/words/add")
     public String addWord(@RequestParam("word") String word,
                           @RequestParam("translation") String translation,
                           @RequestParam("exampleSentence") String exampleSentence,
                           @RequestParam("exampleTranslation") String exampleTranslation,
-                          @RequestParam("languageId") Long languageId) {
-        log.info("Adding new word: {} for languageId={}", word, languageId);
-        wordService.addWord(word, translation, exampleSentence, exampleTranslation, languageId);
-        return "redirect:/admin/dictionaries";
+                          @RequestParam("languageId") Long languageId,
+                          @RequestParam("level") String level,
+                          @RequestParam(value = "tags", required = false) List<String> tags) {
+        log.info("Adding new word: {} for languageId={}, level={}, tags={}", word, languageId, level, tags);
+        try {
+            wordService.addWord(word, translation, exampleSentence, exampleTranslation, languageId, level, tags);
+            return "redirect:/admin/words";
+        } catch (IllegalArgumentException e) {
+            log.error("Error adding word: {}", e.getMessage());
+            return "redirect:/admin/words?error=" + e.getMessage();
+        }
     }
 
-    @GetMapping("/users/{id}/programs")
-    public String viewUserPrograms(@PathVariable("id") Long userId, Model model) {
-        log.info("Viewing programs for userId={}", userId);
-        User user = userService.getUserById(userId);
-        List<Program> programs = programService.getProgramsByUser(userId);
-        model.addAttribute("user", user);
-        model.addAttribute("programs", programs);
-        return "userPrograms";
+    @PostMapping("/words/edit")
+    public String editWord(@RequestParam("wordId") Long wordId,
+                           @RequestParam("word") String word,
+                           @RequestParam("translation") String translation,
+                           @RequestParam("exampleSentence") String exampleSentence,
+                           @RequestParam("exampleTranslation") String exampleTranslation,
+                           @RequestParam("level") String level,
+                           @RequestParam(value = "tags", required = false) List<String> tags) {
+        log.info("Editing wordId: {}", wordId);
+        try {
+            Word existingWord = wordService.getWordById(wordId);
+            existingWord.setWord(word);
+            existingWord.setTranslation(translation);
+            existingWord.setExampleSentence(exampleSentence);
+            existingWord.setExampleTranslation(exampleTranslation);
+            existingWord.setLevel(level);
+            Set<Tag> tagSet = tags != null
+                    ? tags.stream().map(Tag::valueOf).collect(Collectors.toSet())
+                    : null;
+            existingWord.setTagsAsSet(tagSet);
+            wordService.save(existingWord);
+            return "redirect:/admin/words";
+        } catch (IllegalArgumentException e) {
+            log.error("Error editing word {}: {}", wordId, e.getMessage());
+            return "redirect:/admin/words?error=" + e.getMessage();
+        }
     }
 }

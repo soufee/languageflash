@@ -20,7 +20,7 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @Column(name = "first_name", nullable = false)
+    @Column(name = "first_name")
     private String firstName;
 
     @Column(name = "last_name")
@@ -28,9 +28,6 @@ public class User {
 
     @Column(name = "confirmation_code")
     private String confirmationCode;
-
-    @Column(name = "confirmation_code_expiry")
-    private LocalDateTime confirmationCodeExpiry;
 
     @Column(name = "is_email_confirmed", nullable = false)
     private boolean isEmailConfirmed = false;
@@ -44,8 +41,11 @@ public class User {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "role")
-    private Set<String> roles; // Множество ролей (USER, ADMIN)
+    private Set<String> roles;
 
-    @Column(name = "blocked")
-    private boolean blocked = false; // Статус блокировки
+    @Column(name = "blocked", nullable = false)
+    private boolean blocked = false;
+
+    @Column(name = "settings", columnDefinition = "text")
+    private String settings; // JSON с фильтрами программы и настройками
 }

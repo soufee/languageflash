@@ -3,6 +3,8 @@ package ci.ashamaz.languageflash.service;
 import ci.ashamaz.languageflash.dto.RegisterRequest;
 import ci.ashamaz.languageflash.model.User;
 import ci.ashamaz.languageflash.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,15 +22,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
 
 @Service
+@Slf4j
 public class UserService {
-
-    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @Autowired
     private UserRepository userRepository;
@@ -47,6 +46,8 @@ public class UserService {
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     public void registerUser(RegisterRequest request) {
         if (!EMAIL_PATTERN.matcher(request.getEmail()).matches()) {
             throw new IllegalArgumentException("Неверный формат email");
@@ -62,7 +63,17 @@ public class UserService {
         user.setRoles(Set.of("USER"));
         String confirmationCode = generateCode(6);
         user.setConfirmationCode(confirmationCode);
-        user.setConfirmationCodeExpiry(LocalDateTime.now().plusHours(24));
+        // Инициализация настроек по умолчанию
+        Map<String, Object> defaultSettings = new HashMap<>();
+        defaultSettings.put("knowThreshold", 0.1);
+        defaultSettings.put("flashSpeed", 1000);
+        defaultSettings.put("tags", Collections.emptyList()); // Добавляем пустой список тегов
+        try {
+            user.setSettings(objectMapper.writeValueAsString(defaultSettings));
+        } catch (IOException e) {
+            log.error("Ошибка сериализации настроек: {}", e.getMessage());
+            throw new RuntimeException("Ошибка инициализации настроек пользователя");
+        }
         userRepository.save(user);
 
         String confirmationLink = baseUrl + "/auth/confirm-email?email=" + user.getEmail() + "&code=" + confirmationCode;
@@ -70,7 +81,7 @@ public class UserService {
         try {
             emailService.sendHtmlEmail(request.getEmail(), "Подтверждение регистрации - Language Flash", htmlContent);
         } catch (Exception e) {
-            logger.error("Ошибка отправки письма подтверждения для {}: {}", request.getEmail(), e.getMessage());
+            log.error("Ошибка отправки письма подтверждения для {}: {}", request.getEmail(), e.getMessage());
             throw new RuntimeException("Не удалось отправить письмо подтверждения: " + e.getMessage());
         }
     }
@@ -92,7 +103,7 @@ public class UserService {
             try {
                 emailService.sendHtmlEmail(email, "Восстановление пароля - Language Flash", htmlContent);
             } catch (Exception e) {
-                logger.error("Ошибка отправки письма восстановления для {}: {}", email, e.getMessage());
+                log.error("Ошибка отправки письма восстановления для {}: {}", email, e.getMessage());
                 throw new RuntimeException("Не удалось отправить письмо восстановления: " + e.getMessage());
             }
         } else {
@@ -139,7 +150,6 @@ public class UserService {
         return false;
     }
 
-
     public Page<User> getAllUsers(Pageable pageable) {
         return userRepository.findAll(pageable);
     }
@@ -166,6 +176,38 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь с ID " + id + " не найден"));
     }
 
+    @Transactional
+    public void updateSettings(Long userId, Map<String, Object> settings) {
+        User user = getUserById(userId);
+        try {
+            user.setSettings(objectMapper.writeValueAsString(settings));
+            userRepository.save(user);
+        } catch (IOException e) {
+            log.error("Ошибка обновления настроек для пользователя {}: {}", userId, e.getMessage());
+            throw new RuntimeException("Ошибка обновления настроек");
+        }
+    }
+
+    public Map<String, Object> getSettings(Long userId) {
+        User user = getUserById(userId);
+        if (user.getSettings() == null || user.getSettings().isEmpty()) {
+            Map<String, Object> defaultSettings = new HashMap<>();
+            defaultSettings.put("knowThreshold", 0.1);
+            defaultSettings.put("flashSpeed", 1000);
+            defaultSettings.put("tags", Collections.emptyList());
+            return defaultSettings;
+        }
+        try {
+            Map<String, Object> settings = objectMapper.readValue(user.getSettings(), Map.class);
+            if (!settings.containsKey("tags")) {
+                settings.put("tags", Collections.emptyList()); // Добавляем tags, если его нет
+            }
+            return settings;
+        } catch (IOException e) {
+            log.error("Ошибка чтения настроек для пользователя {}: {}", userId, e.getMessage());
+            throw new RuntimeException("Ошибка чтения настроек");
+        }
+    }
     private String generateCode(int length) {
         Random random = new Random();
         return String.format("%0" + length + "d", random.nextInt((int) Math.pow(10, length)));
@@ -178,7 +220,7 @@ public class UserService {
             String safeFirstName = firstName != null ? firstName : "Пользователь";
             return template.replace("${firstName}", safeFirstName).replace("${resetCode}", resetCode);
         } catch (IOException e) {
-            logger.error("Ошибка чтения шаблона письма восстановления: {}", e.getMessage());
+            log.error("Ошибка чтения шаблона письма восстановления: {}", e.getMessage());
             throw new RuntimeException("Ошибка чтения шаблона письма восстановления: " + e.getMessage());
         }
     }
@@ -190,7 +232,7 @@ public class UserService {
             String safeFirstName = firstName != null ? firstName : "Пользователь";
             return template.replace("${firstName}", safeFirstName).replace("${confirmationLink}", confirmationLink);
         } catch (IOException e) {
-            logger.error("Ошибка чтения шаблона письма подтверждения: {}", e.getMessage());
+            log.error("Ошибка чтения шаблона письма подтверждения: {}", e.getMessage());
             throw new RuntimeException("Ошибка чтения шаблона письма подтверждения: " + e.getMessage());
         }
     }

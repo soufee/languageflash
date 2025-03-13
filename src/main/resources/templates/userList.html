@@ -43,7 +43,6 @@
                                 <input type="hidden" name="userId" th:value="${user.id}">
                                 <button type="submit" class="btn btn-warning btn-sm" th:text="${user.roles.contains('ADMIN') ? 'Убрать ADMIN' : 'Дать ADMIN'}"></button>
                             </form>
-                            <a th:href="@{/admin/users/{id}/programs(id=${user.id})}" class="btn btn-sm btn-info">Программы</a>
                         </td>
                         <td th:if="${user.id == currentUserId}">-</td>
                     </tr>
