@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+<!-- Фрагмент для подключения всех ресурсов (CSS и JS) -->
+<div th:fragment="resources">
+    <!-- Подключение CSS -->
+    <link th:href="@{/css/base.css}" rel="stylesheet">
+    <link th:href="@{/css/header.css}" rel="stylesheet">
+    <link th:href="@{/css/hero.css}" rel="stylesheet">
+    <link th:href="@{/css/dictionary.css}" rel="stylesheet">
+    <link th:href="@{/css/admin.css}" rel="stylesheet">
+    <link th:href="@{/css/footer.css}" rel="stylesheet">
+    <link th:href="@{/css/components.css}" rel="stylesheet">
+
+    <!-- Подключение внешних библиотек -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Подключение JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script th:src="@{/js/utils.js}"></script>
+    <script th:src="@{/js/programModal.js}"></script>
+    <script th:src="@{/js/learnModal.js}"></script>
+    <script th:src="@{/js/flashLearnModal.js}"></script>
+    <script th:src="@{/js/activeWordsModal.js}"></script>
+    <script th:src="@{/js/learnedWordsModal.js}"></script>
+    <script th:src="@{/js/dashboard.js}"></script>
+</div>
+</body>
+</html>

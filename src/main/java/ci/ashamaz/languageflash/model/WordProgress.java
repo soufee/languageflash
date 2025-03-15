@@ -22,11 +22,14 @@ public class WordProgress {
     private Word word;
 
     @Column(name = "knowledge_factor", nullable = false)
-    private float knowledgeFactor = 1.0f;
+    private float knowledgeFactor = 1.0f; // Начальное значение 1.0f
 
     @Column(name = "is_learned", nullable = false)
     private boolean isLearned = false;
 
     @Column(name = "last_reviewed")
     private LocalDateTime lastReviewed;
+
+    @Column(name = "next_review_date")
+    private LocalDateTime nextReviewDate; // Для алгоритма повторения
 }

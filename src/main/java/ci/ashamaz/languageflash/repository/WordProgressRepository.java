@@ -9,9 +9,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface WordProgressRepository extends JpaRepository<WordProgress, Long> {
-    List<WordProgress> findByUserId(Long userId);
-
     Optional<WordProgress> findByUserIdAndWordId(Long userId, Long wordId);
+    List<WordProgress> findByUserId(Long userId);
 
     @Query("SELECT wp FROM WordProgress wp WHERE wp.user.id = :userId AND wp.isLearned = false")
     List<WordProgress> findActiveByUserId(@Param("userId") Long userId);

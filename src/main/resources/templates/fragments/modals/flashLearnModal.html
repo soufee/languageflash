@@ -1,0 +1,41 @@
+<div th:fragment="flashLearnModal" class="modal fade" id="flashLearnModal" tabindex="-1" aria-labelledby="flashLearnModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="flashLearnModalLabel">Флеш-запоминание</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body d-flex justify-content-center align-items-center" style="min-height: 80vh; position: relative;">
+                <div id="flashSettings" th:unless="${activeWords == null or activeWords.isEmpty()}">
+                    <div class="mb-3">
+                        <label for="flashSpeed" class="form-label">Скорость (слов в секунду):</label>
+                        <input type="range" class="form-range" id="flashSpeed" min="1" max="10" value="7" step="1" oninput="document.getElementById('speedValue').textContent = this.value">
+                        <span id="speedValue">7</span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="flashDuration" class="form-label">Время сессии (минут):</label>
+                        <input type="range" class="form-range" id="flashDuration" min="1" max="5" value="2" step="1" oninput="document.getElementById('durationValue').textContent = this.value">
+                        <span id="durationValue">2</span>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="startFlashSession()">Начать</button>
+                </div>
+                <div id="flashDisplay" style="display: none; width: 100%; height: 100%; position: relative;">
+                    <div id="flashTimer" class="position-absolute top-0 end-0 m-3"></div>
+                    <div id="flashWordContainer" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 90%; text-align: center;">
+                        <p id="flashWord" style="font-size: 2rem; margin: 0; transition: transform 0.1s; word-wrap: break-word; overflow: hidden; text-overflow: ellipsis;"></p>
+                        <p id="flashTranslation" style="font-size: 2rem; margin: 0; transition: transform 0.1s; word-wrap: break-word; overflow: hidden; text-overflow: ellipsis;"></p>
+                    </div>
+                    <button type="button" class="btn btn-danger position-absolute bottom-0" style="left: 50%; transform: translateX(-50%); margin-bottom: 20px;" onclick="stopFlashSession()">Остановить</button>
+                </div>
+                <div id="flashEnd" style="display: none;">
+                    <h3>Сессия закончилась. Перейдите в режим карточек</h3>
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="openLearnModal()">Перейти</button>
+                </div>
+                <p th:if="${activeWords == null or activeWords.isEmpty()}">Нет слов для флеш-запоминания.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>

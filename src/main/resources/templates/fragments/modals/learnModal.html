@@ -1,0 +1,37 @@
+<div th:fragment="learnModal" class="modal fade" id="learnModal" tabindex="-1" aria-labelledby="learnModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 1200px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="learnModalLabel">Изучение карточек</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body d-flex flex-column justify-content-between" style="min-height: 560px; padding: 20px;" id="cardBody">
+                <div id="learnContent" class="d-flex flex-column flex-grow-1">
+                    <div id="cardContainer" class="d-flex flex-column justify-content-between flex-grow-1">
+                        <!-- Английский вариант -->
+                        <div class="card-text-wrapper" style="flex: 1; display: flex; align-items: center; justify-content: center;">
+                            <h2 id="cardWord" style="font-size: 3rem; color: #2c3e50; text-align: center; max-width: 90%; word-wrap: break-word; margin: 0;"></h2>
+                        </div>
+                        <!-- Русский вариант -->
+                        <div class="card-text-wrapper" style="flex: 1; display: flex; align-items: center; justify-content: center;">
+                            <p id="cardTranslation" style="font-size: 3rem; color: #344e41; text-align: center; max-width: 90%; word-wrap: break-word; margin: 0; display: none;"></p>
+                        </div>
+                        <!-- Пример и перевод -->
+                        <div class="card-text-wrapper" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                            <p id="cardExample" style="font-size: 1.25rem; color: #2c3e50; text-align: center; max-width: 90%; word-wrap: break-word; margin: 0 0 10px 0; display: none;"></p>
+                            <p id="cardExampleTranslation" style="font-size: 1.25rem; color: #344e41; text-align: center; max-width: 90%; word-wrap: break-word; margin: 0; display: none;"></p>
+                        </div>
+                    </div>
+                </div>
+                <form id="learnForm" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);">
+                    <input type="hidden" id="wordId" name="wordId">
+                    <button type="button" class="btn btn-success mx-2" onclick="submitLearnForm(true)">Знаю</button>
+                    <button type="button" class="btn btn-danger mx-2" onclick="submitLearnForm(false)">Не знаю</button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Прервать обучение</button>
+            </div>
+        </div>
+    </div>
+</div>

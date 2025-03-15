@@ -1,0 +1,39 @@
+/* Footer */
+.footer-section {
+    background-color: var(--dark-color);
+    color: white;
+    padding: 2.5rem 0;
+    margin-top: auto;
+}
+
+.footer-section h5 {
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.footer-section .nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem; /* Расстояние между элементами */
+    list-style: none;
+    padding: 0;
+}
+
+.footer-section .nav-link {
+    color: #cbd5e1 !important;
+    transition: color 0.2s;
+    padding: 0.25rem 0.5rem; /* Уменьшаем внутренние отступы для компактности */
+    font-size: 0.9rem;
+}
+
+.footer-section .nav-link:hover {
+    color: white !important;
+}
+
+.footer-section .text-light {
+    font-size: 0.9rem;
+}
+
+.footer-section .text-center.mt-4 p {
+    margin-bottom: 0;
+}

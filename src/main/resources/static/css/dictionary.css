@@ -1,0 +1,74 @@
+/* Dictionary Card Grid */
+.dictionary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    padding: 1.5rem;
+}
+
+.dictionary-card {
+    background-color: white;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.dictionary-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.dictionary-card-header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 1.25rem;
+}
+
+.dictionary-card-header h4 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: white;
+}
+
+.dictionary-card-body {
+    padding: 1.25rem;
+    flex-grow: 1;
+}
+
+.badge-theme {
+    background-color: var(--accent-color);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    display: inline-block;
+    margin-top: 0.75rem;
+}
+
+.word-count {
+    color: var(--text-light);
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Dictionary Card Footer */
+.dictionary-card-footer {
+    padding: 1rem 1.25rem;
+    background-color: var(--light-color);
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    gap: 10px;
+}
+
+/* Responsive Adjustments for Dictionary */
+@media (max-width: 768px) {
+    .dictionary-grid {
+        grid-template-columns: 1fr;
+    }
+}

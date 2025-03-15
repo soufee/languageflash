@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 4.1-add-next-review-date-to-word-progress
+      author: ashalmaz
+      changes:
+        - addColumn:
+            tableName: word_progress
+            columns:
+              - column:
+                  name: next_review_date
+                  type: timestamp
+                  constraints:
+                    nullable: true
+                  defaultValueComputed: CURRENT_TIMESTAMP  # Устанавливаем значение по умолчанию как текущее время
+      comment: "Добавление колонки next_review_date для поддержки алгоритма повторения в таблице word_progress"

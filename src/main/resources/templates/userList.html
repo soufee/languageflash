@@ -3,16 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <title>Админка - Пользователи - Language Flash</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link th:href="@{/css/style.css}" rel="stylesheet">
+    <!-- Подключаем все ресурсы одной строкой -->
+    <div th:replace="~{fragments/resources :: resources}"></div>
 </head>
 <body>
 <div th:replace="~{fragments/adminMenu :: adminMenu}"></div>
 
+<section class="hero-section">
+    <div class="container">
+        <h1>Панель администратора - Пользователи</h1>
+    </div>
+</section>
+
 <section class="admin-section">
     <div class="container-fluid p-0">
-        <h1 class="text-center mb-4">Панель администратора - Пользователи</h1>
         <div class="p-3">
             <form th:action="@{/admin/users/search}" method="get" class="d-flex mb-3">
                 <input type="text" class="form-control me-2" name="email" placeholder="Поиск по email">
@@ -56,6 +60,5 @@
 </section>
 
 <div th:replace="~{fragments/footer :: footer}"></div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

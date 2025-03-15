@@ -1,0 +1,29 @@
+<div th:fragment="activeWordsModal" class="modal fade" id="activeWordsModal" tabindex="-1" aria-labelledby="activeWordsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="activeWordsModalLabel">Активные слова</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped" id="activeWordsTable">
+                    <thead>
+                    <tr>
+                        <th>Слово</th>
+                        <th>Перевод</th>
+                        <th>Действие</th>
+                    </tr>
+                    </thead>
+                    <tbody id="activeWordsBody">
+                    </tbody>
+                </table>
+                <p id="noActiveWords" style="display: none;">Нет активных слов.</p>
+                <button type="button" class="btn btn-primary mt-3" id="refillButton" onclick="refillActiveWords()" disabled>Получить новые</button>
+                <p th:if="${settings['language'] != null}" class="mt-2">Не хватает слов? <a href="#" data-bs-toggle="modal" data-bs-target="#addTagsModal">Добавить темы</a></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>

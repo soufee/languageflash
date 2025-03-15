@@ -1,0 +1,56 @@
+<div th:fragment="programModal" class="modal fade" id="programModal" tabindex="-1" aria-labelledby="programModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="programModalLabel">Выбрать программу</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form th:action="@{/dashboard/update-settings}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="language" class="form-label">Язык</label>
+                        <select class="form-select" id="language" name="language" required onchange="loadLevels(this.value)" th:disabled="${settings['language'] != null}">
+                            <option value="" disabled th:unless="${settings['language'] != null}">Выберите язык</option>
+                            <option th:each="lang : ${languages}" th:value="${lang.name}" th:text="${lang.name}" th:selected="${settings['language'] != null and lang.name == settings['language']}"></option>
+                        </select>
+                        <!-- Скрытое поле для передачи language, если select отключен -->
+                        <input type="hidden" name="language" th:value="${settings['language']}" th:if="${settings['language'] != null}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="minLevel" class="form-label">Минимальный уровень</label>
+                        <select class="form-select" id="minLevel" name="minLevel" required>
+                            <option value="" disabled selected>Сначала выберите язык</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Темы (выберите несколько)</label>
+                        <div class="row">
+                            <div class="col-md-4" th:each="tag : ${tags}">
+                                <div class="card mb-2 tag-card" th:style="'background-color: ' + ${tag.color}" onclick="toggleTag(this)" th:data-tag="${tag.name()}">
+                                    <div class="card-body text-center">
+                                        <img th:if="${tag.imageUrl != null}" th:src="@{${tag.imageUrl}}" class="img-fluid mb-2" th:alt="${tag.russianName}" style="max-height: 50px;">
+                                        <p class="mb-0" th:text="${tag.russianName}"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="tags" name="tags" th:value="${settings['tags'] != null ? #strings.listJoin(settings['tags'], ', ') : ''}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="activeWordsCount" class="form-label">Количество активно изучаемых слов</label>
+                        <select class="form-select" id="activeWordsCount" name="activeWordsCount" required>
+                            <option value="20" th:selected="${settings['activeWordsCount'] == 20}">20</option>
+                            <option value="30" th:selected="${settings['activeWordsCount'] == 30}">30</option>
+                            <option value="50" th:selected="${settings['activeWordsCount'] == 50 || settings['activeWordsCount'] == null}">50</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" onclick="resetProgram()" th:if="${settings['language'] != null}">Сбросить всё</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -89,4 +89,8 @@ public class LanguageService {
         log.info("Retrieving all language levels");
         return languageLevelRepository.findAll();
     }
+    public Language getLanguageByName(String name) {
+        return languageRepository.findByName(name)
+                .orElse(null);
+    }
 }

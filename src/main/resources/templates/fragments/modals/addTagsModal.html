@@ -1,0 +1,29 @@
+<div th:fragment="addTagsModal" class="modal fade" id="addTagsModal" tabindex="-1" aria-labelledby="addTagsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTagsModalLabel">Добавить темы</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form th:action="@{/dashboard/add-tags}" method="post" id="addTagsForm">
+                    <div class="row">
+                        <div class="col-md-4" th:each="tag : ${tags}">
+                            <div class="card mb-2 tag-card" th:style="'background-color: ' + ${tag.color}" onclick="toggleAdditionalTag(this)" th:data-tag="${tag.name()}">
+                                <div class="card-body text-center">
+                                    <img th:if="${tag.imageUrl != null}" th:src="@{${tag.imageUrl}}" class="img-fluid mb-2" th:alt="${tag.russianName}" style="max-height: 50px;">
+                                    <p class="mb-0" th:text="${tag.russianName}"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="additionalTags" name="tags">
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Добавить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

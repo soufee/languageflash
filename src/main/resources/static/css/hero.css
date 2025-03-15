@@ -1,0 +1,49 @@
+/* Hero Section */
+.hero-section {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #818cf8 100%);
+    padding: 5rem 0;
+    color: white;
+    text-align: center;
+}
+
+.hero-section h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+}
+
+.hero-section p {
+    font-size: 1.25rem;
+    font-weight: 400;
+    opacity: 0.9;
+    margin-bottom: 2rem;
+}
+
+.btn-get-started {
+    background-color: white !important;
+    color: var(--primary-color) !important; /* Устанавливаем цвет текста как --primary-color (#6366f1) */
+    font-weight: 600 !important;
+    padding: 0.75rem 2rem !important;
+    border-radius: var(--radius-md) !important;
+    border: none !important;
+    box-shadow: var(--shadow-md) !important;
+    transition: all 0.3s ease !important;
+    text-decoration: none !important; /* Убираем подчёркивание у ссылки */
+    display: inline-block; /* Гарантируем корректное отображение как кнопки */
+}
+
+.btn-get-started:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg) !important;
+}
+
+/* Responsive Adjustments for Hero */
+@media (max-width: 768px) {
+    .hero-section {
+        padding: 3rem 0;
+    }
+
+    .hero-section h1 {
+        font-size: 2rem;
+    }
+}

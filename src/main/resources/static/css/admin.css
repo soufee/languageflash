@@ -1,0 +1,123 @@
+/* Admin Section */
+.admin-section {
+    padding: 2rem;
+    flex-grow: 1;
+    background-color: var(--secondary-color);
+}
+
+.admin-section h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    color: white; /* Белый текст для заголовка в Hero-секции */
+}
+
+.admin-section h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    margin-top: 2rem;
+}
+
+.admin-card {
+    background-color: white;
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+}
+
+/* Words Table */
+.words-table {
+    background-color: white;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+
+.words-table table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.words-table th {
+    background-color: #e0e7ff; /* Светло-синий фон для заголовков таблицы */
+    color: var(--primary-color);
+    font-weight: 600;
+    text-align: left;
+    padding: 1rem;
+    font-size: 0.875rem;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+}
+
+.words-table td {
+    padding: 1rem;
+    border-top: 1px solid #e2e8f0;
+    vertical-align: middle;
+}
+
+.words-table tr:hover {
+    background-color: #f8fafc;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-control, .form-select {
+    border-radius: var(--radius-md);
+    border: 1px solid #e2e8f0;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0;
+}
+
+.pagination .page-item .page-link {
+    padding: 0.5rem 0.75rem;
+    margin: 0 0.25rem;
+    border-radius: var(--radius-md);
+    color: var(--text-dark);
+    background-color: white;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s;
+}
+
+.pagination .page-item .page-link:hover {
+    background-color: #f1f5f9;
+    color: var(--primary-color);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.pagination .page-item.disabled .page-link {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Responsive Adjustments for Admin Section */
+@media (max-width: 768px) {
+    .admin-section {
+        padding: 1rem;
+    }
+}

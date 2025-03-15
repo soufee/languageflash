@@ -1,0 +1,27 @@
+<div th:fragment="learnedWordsModal" class="modal fade" id="learnedWordsModal" tabindex="-1" aria-labelledby="learnedWordsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="learnedWordsModalLabel">Выученные слова</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped" id="learnedWordsTable">
+                    <thead>
+                    <tr>
+                        <th>Слово</th>
+                        <th>Перевод</th>
+                    </tr>
+                    </thead>
+                    <tbody id="learnedWordsBody">
+                    </tbody>
+                </table>
+                <p id="noLearnedWords" style="display: none;">Нет выученных слов.</p>
+                <button type="button" class="btn btn-primary mt-3" id="reviewLearnedButton" onclick="reviewLearnedWords()">Повторить в карточках</button>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
