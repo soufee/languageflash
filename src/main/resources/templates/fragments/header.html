@@ -13,25 +13,12 @@
 
         <!-- Если пользователь не авторизован -->
         <div th:unless="${user != null}" class="d-flex align-items-center">
-            <form th:action="@{/auth/login}" method="post" class="d-flex me-3 align-items-center">
-                <div class="me-2">
-                    <input type="email" class="form-control" name="email" placeholder="Email" required>
-                </div>
-                <div class="me-2">
-                    <input type="password" class="form-control" name="password" placeholder="Пароль" required>
-                </div>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-sign-in-alt me-1"></i> Войти
-                </button>
-            </form>
-            <div class="d-flex flex-column align-items-center">
-                <a th:href="@{/auth/register}" class="btn btn-outline-primary mb-1">
-                    <i class="fas fa-user-plus me-1"></i> Регистрация
-                </a>
-                <a th:href="@{/auth/reset-password}" class="text-muted small">
-                    <i class="fas fa-key me-1"></i> Забыли пароль?
-                </a>
-            </div>
+            <a th:href="@{/auth/login}" class="btn btn-primary me-2">
+                <i class="fas fa-sign-in-alt me-1"></i> Войти
+            </a>
+            <a th:href="@{/auth/register}" class="btn btn-outline-primary">
+                <i class="fas fa-user-plus me-1"></i> Регистрация
+            </a>
         </div>
 
         <!-- Если пользователь авторизован -->
@@ -48,9 +35,11 @@
                 <a th:if="${user.roles.contains('ADMIN')}" th:href="@{/admin}" class="btn btn-outline-primary me-2">
                     <i class="fas fa-tools me-1"></i> Админка
                 </a>
-                <a th:href="@{/auth/logout}" class="btn btn-outline-danger">
-                    <i class="fas fa-sign-out-alt me-1"></i> Выйти
-                </a>
+                <form th:action="@{/auth/logout}" method="post">
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="fas fa-sign-out-alt me-1"></i> Выйти
+                    </button>
+                </form>
             </div>
         </div>
     </div>

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -37,7 +38,7 @@ public class DashboardController {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    @GetMapping("/dashboard")
+    @GetMapping(value = "/dashboard", produces = "text/html;charset=UTF-8")
     public String dashboard(Model model, HttpSession session) throws JsonProcessingException {
         User user = (User) session.getAttribute("user");
         if (user == null) {

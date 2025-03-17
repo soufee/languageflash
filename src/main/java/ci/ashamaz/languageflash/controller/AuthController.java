@@ -3,27 +3,25 @@ package ci.ashamaz.languageflash.controller;
 import ci.ashamaz.languageflash.dto.RegisterRequest;
 import ci.ashamaz.languageflash.model.User;
 import ci.ashamaz.languageflash.service.UserService;
-import ci.ashamaz.languageflash.util.JwtUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.WebAttributes;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
 import java.util.Optional;
 
 @Controller
 @RequestMapping("/auth")
+@Slf4j
 public class AuthController {
 
     @Autowired
     private UserService userService;
-
-    @Autowired
-    private JwtUtil jwtUtil;
 
     @GetMapping("/register")
     public String showRegistrationForm(Model model, HttpSession session) {
@@ -34,9 +32,9 @@ public class AuthController {
 
     @PostMapping("/register")
     public String registerUser(@Valid @ModelAttribute("registerRequest") RegisterRequest request,
-                               Model model, HttpSession session, HttpServletResponse response) {
+                               Model model, HttpSession session) {
         try {
-            userService.registerUser(request, response);
+            userService.registerUser(request);
             session.setAttribute("message", "Регистрация успешна! Проверьте email для подтверждения.");
             return "redirect:/";
         } catch (IllegalArgumentException e) {
@@ -46,43 +44,24 @@ public class AuthController {
         }
     }
 
-    @PostMapping("/login")
-    public String login(@RequestParam("email") String email,
-                        @RequestParam("password") String password,
-                        Model model,
-                        HttpSession session,
-                        HttpServletResponse response) {
-        Optional<User> userOptional = userService.findByEmail(email);
-        if (userOptional.isPresent() && userService.checkPassword(userOptional.get(), password)) {
-            User user = userOptional.get();
-            if (!user.isEmailConfirmed()) {
-                session.setAttribute("loginError", "Подтвердите email перед входом");
-                return "redirect:/";
-            }
-            String token = jwtUtil.generateToken(email, user.getRoles());
-            Cookie jwtCookie = new Cookie("jwt", token);
-            jwtCookie.setHttpOnly(true);
-            jwtCookie.setSecure(true);
-            jwtCookie.setPath("/");
-            jwtCookie.setMaxAge(36000);
-            response.addCookie(jwtCookie);
-            session.setAttribute("user", user);
-            return "redirect:/dashboard";
-        } else {
-            session.setAttribute("loginError", "Неверный email или пароль");
-            return "redirect:/";
+    @GetMapping("/login")
+    public String showLoginForm(HttpSession session, Model model) {
+        // Получаем и добавляем информацию об ошибке аутентификации, если есть
+        AuthenticationException exception = (AuthenticationException) session
+                .getAttribute(WebAttributes.AUTHENTICATION_EXCEPTION);
+        if (exception != null) {
+            String errorMessage = exception.getMessage();
+            model.addAttribute("loginError", errorMessage);
+            session.removeAttribute(WebAttributes.AUTHENTICATION_EXCEPTION);
         }
+
+        addAuthAttributes(session, model);
+        return "login";
     }
 
     @GetMapping("/logout")
-    public String logout(HttpSession session, HttpServletResponse response) {
+    public String logout(HttpSession session) {
         session.invalidate();
-        Cookie jwtCookie = new Cookie("jwt", null);
-        jwtCookie.setHttpOnly(true);
-        jwtCookie.setSecure(true);
-        jwtCookie.setPath("/");
-        jwtCookie.setMaxAge(0);
-        response.addCookie(jwtCookie);
         return "redirect:/";
     }
 
@@ -138,12 +117,6 @@ public class AuthController {
             session.setAttribute("error", "Неверный или просроченный код подтверждения");
             return "redirect:/";
         }
-    }
-
-    @GetMapping("/login")
-    public String showLoginForm(HttpSession session, Model model) {
-        addAuthAttributes(session, model);
-        return "login";
     }
 
     private void addAuthAttributes(HttpSession session, Model model) {

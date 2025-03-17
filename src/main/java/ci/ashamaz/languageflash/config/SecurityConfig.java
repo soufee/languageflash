@@ -1,7 +1,5 @@
 package ci.ashamaz.languageflash.config;
 
-import ci.ashamaz.languageflash.util.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -9,24 +7,10 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtUtil);
-    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -35,11 +19,24 @@ public class SecurityConfig {
                 .authorizeRequests(authorizeRequests ->
                         authorizeRequests
                                 .antMatchers("/admin/**").hasRole("ADMIN")
-                                .antMatchers("/", "/css/**", "/js/**", "/auth/register", "/auth/reset-password/**",
-                                        "/auth/login").permitAll()
+                                .antMatchers("/", "/css/**", "/js/**", "/auth/register", "/auth/reset-password/**", "/auth/confirm-email").permitAll()
                                 .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+                .formLogin()
+                .loginPage("/auth/login")
+                .loginProcessingUrl("/auth/login")
+                .usernameParameter("email")
+                .passwordParameter("password")
+                .defaultSuccessUrl("/dashboard", true)
+                .failureUrl("/auth/login?error")
+                .permitAll()
+                .and()
+                .logout()
+                .logoutUrl("/auth/logout")
+                .logoutSuccessUrl("/")
+                .invalidateHttpSession(true)
+                .clearAuthentication(true)
+                .permitAll();
         return http.build();
     }
 }

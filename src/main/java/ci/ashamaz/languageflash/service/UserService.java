@@ -6,6 +6,7 @@ import ci.ashamaz.languageflash.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -52,7 +53,7 @@ public class UserService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
-    public void registerUser(@NotNull RegisterRequest request, HttpServletResponse response) {
+    public void registerUser(@NotNull RegisterRequest request) { // Убрали HttpServletResponse
         if (!EMAIL_PATTERN.matcher(request.getEmail()).matches()) {
             throw new IllegalArgumentException("Неверный формат email");
         }
@@ -90,7 +91,9 @@ public class UserService {
     }
 
     public boolean checkPassword(@NotNull User user, @NotEmpty String rawPassword) {
-        return passwordEncoder.matches(rawPassword, user.getPasswordHash());
+        boolean matches = passwordEncoder.matches(rawPassword, user.getPasswordHash());
+        log.info("checkPassword for {}: matches = {}", user.getEmail(), matches);
+        return matches;
     }
 
     @Transactional
@@ -165,7 +168,9 @@ public class UserService {
     }
 
     public Optional<User> findByEmail(@NotEmpty @Email String email) {
-        return userRepository.findByEmail(email);
+        Optional<User> user = userRepository.findByEmail(email);
+        log.info("findByEmail({}): found = {}", email, user.isPresent());
+        return user;
     }
 
     public Page<User> searchUsersByEmail(@NotEmpty @Email String email, @NotNull Pageable pageable) {
