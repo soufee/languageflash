@@ -2,15 +2,16 @@
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Дашборд - Language Flash</title>
+    <title>Личный кабинет - Language Flash</title>
     <!-- Подключаем все ресурсы одной строкой -->
     <div th:replace="~{fragments/resources :: resources}"></div>
 </head>
 <body>
 <div th:replace="~{fragments/header :: header}"></div>
+
 <section class="content-section">
     <div class="container">
-        <h1>Добро пожаловать, <span th:text="${user.firstName}"></span>!</h1>
+        <h1 th:text="'Здравствуйте, ' + ${user.firstName} + '!'">Здравствуйте, <span th:text="${user.firstName}"></span>!</h1>
 
         <!-- Кнопка для выбора программы -->
         <div class="mb-4">
@@ -24,9 +25,7 @@
             <h3>Ваша программа</h3>
             <p>Язык: <span th:text="${settings['language']}"></span></p>
             <p>Уровень: <span th:text="${settings['minLevel']}"></span></p>
-            <p>Темы: <span
-                    th:text="${tagRussianNames != null and !tagRussianNames.isEmpty() ? #strings.listJoin(tagRussianNames, ', ') : 'Нет тем'}"></span>
-            </p>
+            <p>Темы: <span th:text="${tagRussianNames != null and !tagRussianNames.isEmpty() ? #strings.listJoin(tagRussianNames, ', ') : 'Нет тем'}"></span></p>
         </div>
 
         <!-- Прогресс -->
@@ -37,15 +36,13 @@
                 Посмотреть активные слова
             </button>
             <p>Выученных слов: <span id="learnedWordsCount" th:text="${learnedCount}"></span></p>
-            <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal"
-                    data-bs-target="#learnedWordsModal">
+            <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#learnedWordsModal">
                 Посмотреть выученные слова
             </button>
             <a href="#" class="btn btn-primary" th:classappend="${settings['language'] == null ? 'disabled' : ''}"
-               data-bs-toggle="modal" data-bs-target="#learnModal">Карточки</a>
-            <a href="#" class="btn btn-secondary ms-2"
-               th:classappend="${settings['language'] == null ? 'disabled' : ''}" data-bs-toggle="modal"
-               data-bs-target="#flashLearnModal">Флеш-запоминание</a>
+               onclick="initLearnModal()" data-bs-toggle="modal" data-bs-target="#learnModal">Карточки</a>
+            <a href="#" class="btn btn-secondary ms-2" th:classappend="${settings['language'] == null ? 'disabled' : ''}"
+               data-bs-toggle="modal" data-bs-target="#flashLearnModal">Флеш-запоминание</a>
         </div>
     </div>
 </section>
@@ -59,5 +56,5 @@
 <div th:replace="~{fragments/modals/addTagsModal :: addTagsModal}"></div>
 
 <div th:replace="~{fragments/footer :: footer}"></div>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'920c27e83880bfba',t:'MTc0MjA0MzIyOS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>

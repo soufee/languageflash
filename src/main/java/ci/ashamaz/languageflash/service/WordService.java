@@ -7,9 +7,15 @@ import ci.ashamaz.languageflash.repository.WordProgressRepository;
 import ci.ashamaz.languageflash.repository.WordRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -29,28 +35,29 @@ public class WordService {
     @Autowired
     private UserService userService;
 
-    public List<Word> getWordsByLanguage(Long languageId) {
+    @Cacheable("wordsByLanguage")
+    public List<Word> getWordsByLanguage(@NotNull Long languageId) {
         log.info("Retrieving words for languageId: {}", languageId);
         List<Word> words = wordRepository.findByLanguageId(languageId);
         log.debug("Found {} words for languageId: {}", words.size(), languageId);
         return words;
     }
 
-    public List<Word> getWordsByLanguageAndMinLevel(Long languageId, String minLevel) {
+    public List<Word> getWordsByLanguageAndMinLevel(@NotNull Long languageId, @NotEmpty String minLevel) {
         log.info("Retrieving words for languageId: {} with minLevel: {}", languageId, minLevel);
         List<Word> words = wordRepository.findByLanguageIdAndMinLevel(languageId, minLevel);
         log.debug("Found {} words for languageId: {} and minLevel: {}", words.size(), languageId, minLevel);
         return words;
     }
 
-    public List<Word> getWordsByLanguageLevelAndTag(Long languageId, String minLevel, String tag) {
+    public List<Word> getWordsByLanguageLevelAndTag(@NotNull Long languageId, @NotEmpty String minLevel, @NotEmpty String tag) {
         log.info("Retrieving words for languageId: {}, minLevel: {}, tag: {}", languageId, minLevel, tag);
         List<Word> words = wordRepository.findByLanguageIdAndMinLevelAndTag(languageId, minLevel, tag);
         log.debug("Found {} words for languageId: {}, minLevel: {}, tag: {}", words.size(), languageId, minLevel, tag);
         return words;
     }
 
-    public Word getWordById(Long id) {
+    public Word getWordById(@NotNull Long id) {
         log.info("Retrieving word by id: {}", id);
         return wordRepository.findById(id)
                 .orElseThrow(() -> {
@@ -59,20 +66,25 @@ public class WordService {
                 });
     }
 
-    public List<Word> getAllWords() {
-        log.info("Retrieving all words");
-        return wordRepository.findAll();
+    public Page<Word> getAllWords(@NotNull Pageable pageable) {
+        log.info("Retrieving all words with pagination");
+        return wordRepository.findAll(pageable);
     }
 
     @Transactional
-    public void save(Word word) {
+    public void save(@NotNull Word word) {
         log.info("Saving word: {}", word);
         wordRepository.save(word);
     }
 
     @Transactional
-    public Word addWord(String word, String translation, String exampleSentence, String exampleTranslation,
-                        Long languageId, String level, List<String> tags) {
+    public Word addWord(@NotEmpty @Size(min = 1, max = 100) String word,
+                        @NotEmpty @Size(min = 1, max = 100) String translation,
+                        @Size(max = 500) String exampleSentence,
+                        @Size(max = 500) String exampleTranslation,
+                        @NotNull Long languageId,
+                        @NotEmpty String level,
+                        List<@NotEmpty String> tags) {
         log.info("Adding word: {} for languageId: {}, level: {}, tags: {}", word, languageId, level, tags);
         Language language = languageService.getLanguageById(languageId);
         Word newWord = new Word();
@@ -91,7 +103,11 @@ public class WordService {
         return savedWord;
     }
 
-    public List<Word> selectWordsForLearning(Long userId, String languageName, String minLevel, List<String> tags, int currentActiveCount) {
+    public List<Word> selectWordsForLearning(@NotNull Long userId,
+                                             @NotEmpty String languageName,
+                                             @NotEmpty String minLevel,
+                                             List<@NotEmpty String> tags,
+                                             int currentActiveCount) {
         log.info("Selecting words for user: {}, language: {}, minLevel: {}, tags: {}, currentActiveCount: {}",
                 userId, languageName, minLevel, tags, currentActiveCount);
 
@@ -103,13 +119,12 @@ public class WordService {
         Map<String, Object> settings = userService.getSettings(userId);
         int activeWordsCount = (int) settings.getOrDefault("activeWordsCount", 50);
 
-        int wordsNeeded = Math.max(0, activeWordsCount - currentActiveCount); // Сколько слов нужно добавить
+        int wordsNeeded = Math.max(0, activeWordsCount - currentActiveCount);
         if (wordsNeeded == 0) {
             log.info("No additional words needed for user: {}", userId);
             return Collections.emptyList();
         }
 
-        // Строгий порядок уровней
         List<String> levelOrder = Arrays.asList("A1", "A2", "B1", "B2", "C1", "C2");
         int minLevelIndex = levelOrder.indexOf(minLevel);
         if (minLevelIndex == -1) {
@@ -117,7 +132,6 @@ public class WordService {
             throw new IllegalArgumentException("Недопустимый уровень: " + minLevel);
         }
 
-        // Получаем все существующие слова в прогрессе пользователя (активные и выученные)
         List<Long> existingWordIds = wordProgressRepository.findByUserId(userId).stream()
                 .map(progress -> progress.getWord().getId())
                 .collect(Collectors.toList());
@@ -126,7 +140,6 @@ public class WordService {
         List<Word> selectedWords = new ArrayList<>();
         Set<String> tagSet = tags != null ? new HashSet<>(tags) : Collections.emptySet();
 
-        // Проходим по уровням от minLevel до C2
         for (int i = minLevelIndex; i < levelOrder.size() && selectedWords.size() < wordsNeeded; i++) {
             String currentLevel = levelOrder.get(i);
             log.debug("Processing level: {}", currentLevel);
@@ -142,12 +155,10 @@ public class WordService {
                 levelWords = wordRepository.findByLanguageIdAndMinLevel(language.getId(), currentLevel);
             }
 
-            // Фильтруем слова, исключая уже существующие
             List<Word> filteredWords = levelWords.stream()
                     .filter(word -> !existingWordIds.contains(word.getId()))
                     .collect(Collectors.toList());
 
-            // Добавляем отфильтрованные слова до нужного количества
             selectedWords.addAll(filteredWords);
             if (selectedWords.size() >= wordsNeeded) {
                 selectedWords = selectedWords.subList(0, wordsNeeded);

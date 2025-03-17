@@ -23,11 +23,19 @@
                         </div>
                     </div>
                 </div>
-                <form id="learnForm" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);">
-                    <input type="hidden" id="wordId" name="wordId">
-                    <button type="button" class="btn btn-success mx-2" onclick="submitLearnForm(true)">Знаю</button>
-                    <button type="button" class="btn btn-danger mx-2" onclick="submitLearnForm(false)">Не знаю</button>
-                </form>
+                <!-- Контейнер для кнопок и сообщения -->
+                <div id="learnControls" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);">
+                    <form id="learnForm" style="display: inline;">
+                        <input type="hidden" id="wordId" name="wordId">
+                        <button type="button" class="btn btn-success mx-2" onclick="submitLearnForm(true)">Знаю</button>
+                        <button type="button" class="btn btn-danger mx-2" onclick="submitLearnForm(false)">Не знаю</button>
+                    </form>
+                    <div id="noWordsMessage" style="display: none; text-align: center;">
+                        <h3>Слова закончились</h3>
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закончить обучение</button>
+                        <button type="button" class="btn btn-secondary mx-2" onclick="refillWords()">Продолжить</button>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Прервать обучение</button>

@@ -116,7 +116,6 @@ public class DashboardController {
 
         userService.updateSettings(user.getId(), settings);
 
-        // Передаем текущее количество активных слов (0, так как это начальная настройка)
         initializeLearningWords(user, language, minLevel, tagList, activeWordsCount, 0, model);
 
         return "redirect:/dashboard";
@@ -180,6 +179,29 @@ public class DashboardController {
         return objectMapper.writeValueAsString(activeWordsJson);
     }
 
+    @GetMapping("/dashboard/learned-words-json")
+    @ResponseBody
+    public String getLearnedWordsJson(HttpSession session) throws JsonProcessingException {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return "[]";
+        }
+        List<WordProgress> learnedProgress = wordProgressService.getLearnedProgress(user.getId());
+        List<Map<String, Object>> learnedWordsJson = learnedProgress.stream()
+                .map(wp -> {
+                    Map<String, Object> wordData = new HashMap<>();
+                    wordData.put("id", wp.getWord().getId());
+                    wordData.put("word", wp.getWord().getWord());
+                    wordData.put("translation", wp.getWord().getTranslation());
+                    wordData.put("knowledgeFactor", wp.getKnowledgeFactor());
+                    wordData.put("exampleSentence", wp.getWord().getExampleSentence());
+                    wordData.put("exampleTranslation", wp.getWord().getExampleTranslation());
+                    return wordData;
+                })
+                .collect(Collectors.toList());
+        return objectMapper.writeValueAsString(learnedWordsJson);
+    }
+
     @GetMapping("/dashboard/settings")
     @ResponseBody
     public Map<String, Object> getSettings(HttpSession session) {
@@ -229,14 +251,12 @@ public class DashboardController {
         String minLevel = (String) settings.get("minLevel");
         int activeWordsCount = (int) settings.getOrDefault("activeWordsCount", 50);
 
-        // Получаем текущее количество активных слов
         List<WordProgress> activeWords = wordProgressService.getActiveProgress(user.getId());
         int currentActiveCount = activeWords.size();
 
         List<Word> selectedWords = wordService.selectWordsForLearning(user.getId(), language, minLevel, updatedTags, currentActiveCount);
         wordProgressService.initializeProgress(user.getId(), selectedWords.subList(0, Math.min(activeWordsCount - currentActiveCount, selectedWords.size())));
 
-        // Проверяем, нужно ли показать addTagsModal
         List<WordProgress> updatedActiveWords = wordProgressService.getActiveProgress(user.getId());
         if (updatedActiveWords.size() < activeWordsCount && updatedTags.size() < Tag.values().length) {
             model.addAttribute("showTagPrompt", true);
@@ -247,5 +267,44 @@ public class DashboardController {
         }
 
         return "redirect:/dashboard";
+    }
+
+    @PostMapping("/dashboard/remove-word")
+    @ResponseBody
+    public Map<String, String> removeWord(@RequestBody Map<String, Long> requestBody, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            throw new IllegalStateException("Пользователь не авторизован");
+        }
+        Long wordId = requestBody.get("wordId");
+        if (wordId == null) {
+            throw new IllegalArgumentException("Идентификатор слова не указан");
+        }
+
+        WordProgress progress = wordProgressService.getProgress(user.getId(), wordId);
+        progress.setKnowledgeFactor(0.0f);
+        progress.setLearned(true);
+        wordProgressService.save(progress);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("status", "success");
+        return response;
+    }
+
+    @PostMapping("/dashboard/update-progress")
+    @ResponseBody
+    public Map<String, String> updateProgress(@RequestBody Map<String, Object> requestBody, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            throw new IllegalStateException("Пользователь не авторизован");
+        }
+        Long wordId = Long.valueOf(requestBody.get("wordId").toString());
+        Boolean knows = Boolean.valueOf(requestBody.get("knows").toString());
+
+        wordProgressService.updateProgress(user.getId(), wordId, knows);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("status", "success");
+        return response;
     }
 }

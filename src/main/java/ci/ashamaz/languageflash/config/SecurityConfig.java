@@ -11,8 +11,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import javax.servlet.Filter;
-
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -26,7 +24,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public Filter jwtAuthenticationFilter() {
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
         return new JwtAuthenticationFilter(jwtUtil);
     }
 
@@ -34,21 +32,13 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf().disable()
-                .authorizeRequests()
-                .antMatchers(
-                        "/", "/about", "/method", "/contacts", "/blog",
-                        "/auth/register", "/auth/login", "/auth/logout",
-                        "/auth/confirm-email", "/auth/reset-password",
-                        "/auth/reset-password/request", "/auth/reset-password/verify",
-                        "/css/**", "/js/**", "/images/**", "/static/**" // Явно разрешаем все статические ресурсы
-                ).permitAll()
-                .antMatchers("/admin/**").hasRole("ADMIN")
-                .antMatchers("/dashboard").authenticated()
-                .anyRequest().authenticated()
-                .and()
-                .exceptionHandling()
-                .accessDeniedPage("/error")
-                .and()
+                .authorizeRequests(authorizeRequests ->
+                        authorizeRequests
+                                .antMatchers("/admin/**").hasRole("ADMIN")
+                                .antMatchers("/", "/css/**", "/js/**", "/auth/register", "/auth/reset-password/**",
+                                        "/auth/login").permitAll()
+                                .anyRequest().authenticated()
+                )
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

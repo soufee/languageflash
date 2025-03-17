@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-indexes-to-word-table
+      author: grok
+      changes:
+        - createIndex:
+            indexName: idx_word_language_id
+            tableName: words
+            columns:
+              - column:
+                  name: language_id
+        - createIndex:
+            indexName: idx_word_level
+            tableName: words
+            columns:
+              - column:
+                  name: level

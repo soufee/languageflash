@@ -9,7 +9,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import javax.validation.Valid;
 import java.util.Optional;
 
 @Controller
@@ -25,19 +28,20 @@ public class AuthController {
     @GetMapping("/register")
     public String showRegistrationForm(Model model, HttpSession session) {
         model.addAttribute("registerRequest", new RegisterRequest());
-        addAuthAttributes(session, model); // Передаём уведомления
+        addAuthAttributes(session, model);
         return "register";
     }
 
     @PostMapping("/register")
-    public String registerUser(@ModelAttribute("registerRequest") RegisterRequest request, Model model, HttpSession session) {
+    public String registerUser(@Valid @ModelAttribute("registerRequest") RegisterRequest request,
+                               Model model, HttpSession session, HttpServletResponse response) {
         try {
-            userService.registerUser(request);
+            userService.registerUser(request, response);
             session.setAttribute("message", "Регистрация успешна! Проверьте email для подтверждения.");
             return "redirect:/";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
-            addAuthAttributes(session, model); // Передаём уведомления даже при ошибке
+            addAuthAttributes(session, model);
             return "register";
         }
     }
@@ -46,7 +50,8 @@ public class AuthController {
     public String login(@RequestParam("email") String email,
                         @RequestParam("password") String password,
                         Model model,
-                        HttpSession session) {
+                        HttpSession session,
+                        HttpServletResponse response) {
         Optional<User> userOptional = userService.findByEmail(email);
         if (userOptional.isPresent() && userService.checkPassword(userOptional.get(), password)) {
             User user = userOptional.get();
@@ -55,7 +60,12 @@ public class AuthController {
                 return "redirect:/";
             }
             String token = jwtUtil.generateToken(email, user.getRoles());
-            session.setAttribute("token", token);
+            Cookie jwtCookie = new Cookie("jwt", token);
+            jwtCookie.setHttpOnly(true);
+            jwtCookie.setSecure(true);
+            jwtCookie.setPath("/");
+            jwtCookie.setMaxAge(36000);
+            response.addCookie(jwtCookie);
             session.setAttribute("user", user);
             return "redirect:/dashboard";
         } else {
@@ -65,8 +75,14 @@ public class AuthController {
     }
 
     @GetMapping("/logout")
-    public String logout(HttpSession session) {
+    public String logout(HttpSession session, HttpServletResponse response) {
         session.invalidate();
+        Cookie jwtCookie = new Cookie("jwt", null);
+        jwtCookie.setHttpOnly(true);
+        jwtCookie.setSecure(true);
+        jwtCookie.setPath("/");
+        jwtCookie.setMaxAge(0);
+        response.addCookie(jwtCookie);
         return "redirect:/";
     }
 
@@ -87,7 +103,7 @@ public class AuthController {
             return "reset-password-code";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
-            addAuthAttributes(session, model); // Передаём уведомления
+            addAuthAttributes(session, model);
             return "reset-password";
         }
     }
@@ -105,7 +121,7 @@ public class AuthController {
         } catch (IllegalArgumentException e) {
             model.addAttribute("email", email);
             model.addAttribute("error", e.getMessage());
-            addAuthAttributes(session, model); // Передаём уведомления
+            addAuthAttributes(session, model);
             return "reset-password-code";
         }
     }
@@ -122,6 +138,12 @@ public class AuthController {
             session.setAttribute("error", "Неверный или просроченный код подтверждения");
             return "redirect:/";
         }
+    }
+
+    @GetMapping("/login")
+    public String showLoginForm(HttpSession session, Model model) {
+        addAuthAttributes(session, model);
+        return "login";
     }
 
     private void addAuthAttributes(HttpSession session, Model model) {

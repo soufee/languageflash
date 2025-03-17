@@ -1,54 +1,64 @@
 let learnedWordsList = [];
 
-function loadLearnedWords(callback) {
-    fetch('/learn/learned-words')
-        .then(response => response.json())
+function loadLearnedWords() {
+    fetch('/dashboard/learned-words-json')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Ошибка загрузки выученных слов: ' + response.status);
+            }
+            return response.text();
+        })
         .then(data => {
-            learnedWordsList = data;
-            console.log('Loaded learnedWordsList:', learnedWordsList);
-            if (callback) callback();
+            learnedWordsList = JSON.parse(data);
+            const tbody = document.getElementById('learnedWordsBody');
+            const noWordsMessage = document.getElementById('noLearnedWords');
+
+            tbody.innerHTML = '';
+
+            if (learnedWordsList.length === 0) {
+                noWordsMessage.style.display = 'block';
+            } else {
+                noWordsMessage.style.display = 'none';
+                learnedWordsList.forEach(word => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${word.word}</td>
+                        <td>${word.translation}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
         })
         .catch(error => {
-            console.error('Error loading learnedWordsList:', error);
-            document.getElementById('learnedWordsTable').innerHTML = '<p>Ошибка загрузки слов.</p>';
+            console.error('Ошибка:', error);
+            document.getElementById('learnedWordsBody').innerHTML = '<tr><td colspan="2">Ошибка загрузки слов</td></tr>';
         });
-}
-
-function updateLearnedWordsTable() {
-    const tbody = document.getElementById('learnedWordsBody');
-    const noWordsMessage = document.getElementById('noLearnedWords');
-    const reviewButton = document.getElementById('reviewLearnedButton');
-    tbody.innerHTML = '';
-    if (learnedWordsList.length === 0) {
-        noWordsMessage.style.display = 'block';
-        reviewButton.disabled = true;
-    } else {
-        noWordsMessage.style.display = 'none';
-        reviewButton.disabled = false;
-        learnedWordsList.forEach(word => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${word.word}</td>
-                <td>${word.translation}</td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
 }
 
 function reviewLearnedWords() {
+    currentWords = [...learnedWordsList];
+    currentIndex = 0;
+    showCardContent();
     const learnModal = new bootstrap.Modal(document.getElementById('learnModal'));
-    learnWords = [...learnedWordsList];
-    startCardSession(learnWords);
-}
+    learnModal.show();
 
-function initLearnedWordsModal() {
-    const learnedWordsModal = document.getElementById('learnedWordsModal');
-    learnedWordsModal.addEventListener('show.bs.modal', function () {
-        if (learnedWordsList.length === 0) {
-            loadLearnedWords(updateLearnedWordsTable);
-        } else {
-            updateLearnedWordsTable();
-        }
+    // Переопределяем submitLearnForm для выученных слов (только переключение)
+    document.querySelectorAll('#learnForm button').forEach(button => {
+        button.onclick = function(e) {
+            e.preventDefault();
+            currentIndex++;
+            showCardContent();
+        };
     });
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    const modalElement = document.getElementById('learnedWordsModal');
+    if (modalElement) {
+        modalElement.addEventListener('shown.bs.modal', function () {
+            loadLearnedWords();
+        });
+    } else {
+        console.error("Элемент #learnedWordsModal не найден в DOM");
+    }
+});

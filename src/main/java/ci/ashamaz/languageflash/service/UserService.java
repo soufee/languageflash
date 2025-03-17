@@ -5,8 +5,6 @@ import ci.ashamaz.languageflash.model.User;
 import ci.ashamaz.languageflash.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -18,6 +16,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.FileCopyUtils;
 
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.constraints.Email;
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -48,7 +51,8 @@ public class UserService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public void registerUser(RegisterRequest request) {
+    @Transactional
+    public void registerUser(@NotNull RegisterRequest request, HttpServletResponse response) {
         if (!EMAIL_PATTERN.matcher(request.getEmail()).matches()) {
             throw new IllegalArgumentException("Неверный формат email");
         }
@@ -63,11 +67,10 @@ public class UserService {
         user.setRoles(Set.of("USER"));
         String confirmationCode = generateCode(6);
         user.setConfirmationCode(confirmationCode);
-        // Инициализация настроек по умолчанию
         Map<String, Object> defaultSettings = new HashMap<>();
         defaultSettings.put("knowThreshold", 0.1);
         defaultSettings.put("flashSpeed", 1000);
-        defaultSettings.put("tags", Collections.emptyList()); // Добавляем пустой список тегов
+        defaultSettings.put("tags", Collections.emptyList());
         try {
             user.setSettings(objectMapper.writeValueAsString(defaultSettings));
         } catch (IOException e) {
@@ -86,11 +89,12 @@ public class UserService {
         }
     }
 
-    public boolean checkPassword(User user, String rawPassword) {
+    public boolean checkPassword(@NotNull User user, @NotEmpty String rawPassword) {
         return passwordEncoder.matches(rawPassword, user.getPasswordHash());
     }
 
-    public void sendResetCode(String email) {
+    @Transactional
+    public void sendResetCode(@NotEmpty @Email String email) {
         Optional<User> userOptional = userRepository.findByEmail(email);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
@@ -111,7 +115,7 @@ public class UserService {
         }
     }
 
-    public boolean verifyResetCode(String email, String code) {
+    public boolean verifyResetCode(@NotEmpty @Email String email, @NotEmpty String code) {
         Optional<User> userOptional = userRepository.findByEmail(email);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
@@ -121,7 +125,8 @@ public class UserService {
         return false;
     }
 
-    public void resetPassword(String email, String code, String newPassword) {
+    @Transactional
+    public void resetPassword(@NotEmpty @Email String email, @NotEmpty String code, @NotEmpty String newPassword) {
         if (verifyResetCode(email, code)) {
             Optional<User> userOptional = userRepository.findByEmail(email);
             if (userOptional.isPresent()) {
@@ -136,7 +141,8 @@ public class UserService {
         }
     }
 
-    public boolean confirmEmail(String email, String code) {
+    @Transactional
+    public boolean confirmEmail(@NotEmpty @Email String email, @NotEmpty String code) {
         Optional<User> userOptional = userRepository.findByEmail(email);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
@@ -150,34 +156,34 @@ public class UserService {
         return false;
     }
 
-    public Page<User> getAllUsers(Pageable pageable) {
+    public Page<User> getAllUsers(@NotNull Pageable pageable) {
         return userRepository.findAll(pageable);
     }
 
-    public Optional<User> findById(Long id) {
+    public Optional<User> findById(@NotNull Long id) {
         return userRepository.findById(id);
     }
 
-    public Optional<User> findByEmail(String email) {
+    public Optional<User> findByEmail(@NotEmpty @Email String email) {
         return userRepository.findByEmail(email);
     }
 
-    public Page<User> searchUsersByEmail(String email, Pageable pageable) {
+    public Page<User> searchUsersByEmail(@NotEmpty @Email String email, @NotNull Pageable pageable) {
         return userRepository.findByEmailContainingIgnoreCase(email, pageable);
     }
 
     @Transactional
-    public void save(User user) {
+    public void save(@NotNull User user) {
         userRepository.save(user);
     }
 
-    public User getUserById(Long id) {
+    public User getUserById(@NotNull Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь с ID " + id + " не найден"));
     }
 
     @Transactional
-    public void updateSettings(Long userId, Map<String, Object> settings) {
+    public void updateSettings(@NotNull Long userId, @NotNull Map<String, Object> settings) {
         User user = getUserById(userId);
         try {
             user.setSettings(objectMapper.writeValueAsString(settings));
@@ -188,7 +194,7 @@ public class UserService {
         }
     }
 
-    public Map<String, Object> getSettings(Long userId) {
+    public Map<String, Object> getSettings(@NotNull Long userId) {
         User user = getUserById(userId);
         if (user.getSettings() == null || user.getSettings().isEmpty()) {
             Map<String, Object> defaultSettings = new HashMap<>();
@@ -200,7 +206,7 @@ public class UserService {
         try {
             Map<String, Object> settings = objectMapper.readValue(user.getSettings(), Map.class);
             if (!settings.containsKey("tags")) {
-                settings.put("tags", Collections.emptyList()); // Добавляем tags, если его нет
+                settings.put("tags", Collections.emptyList());
             }
             return settings;
         } catch (IOException e) {
@@ -208,6 +214,7 @@ public class UserService {
             throw new RuntimeException("Ошибка чтения настроек");
         }
     }
+
     private String generateCode(int length) {
         Random random = new Random();
         return String.format("%0" + length + "d", random.nextInt((int) Math.pow(10, length)));

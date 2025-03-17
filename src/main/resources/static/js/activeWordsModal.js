@@ -1,161 +1,73 @@
-let activeWordsList = [];
-let selectedAdditionalTags = new Set();
-
-function loadActiveWords(callback) {
+function loadActiveWords() {
     fetch('/dashboard/active-words-json')
-        .then(response => response.json())
-        .then(data => {
-            activeWordsList = data;
-            console.log('Loaded activeWordsList:', activeWordsList);
-            if (callback) callback();
-        })
-        .catch(error => {
-            console.error('Error loading activeWordsList:', error);
-            document.getElementById('activeWordsTable').innerHTML = '<p>Ошибка загрузки слов.</p>';
-        });
-}
-
-function updateActiveWordsTable() {
-    const tbody = document.getElementById('activeWordsBody');
-    const noWordsMessage = document.getElementById('noActiveWords');
-    const refillButton = document.getElementById('refillButton');
-    tbody.innerHTML = '';
-    if (activeWordsList.length === 0) {
-        noWordsMessage.style.display = 'block';
-        refillButton.disabled = false;
-    } else {
-        noWordsMessage.style.display = 'none';
-        activeWordsList.forEach(word => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${word.word}</td>
-                <td>${word.translation}</td>
-                <td><button type="button" class="btn btn-danger btn-sm" onclick="markAsLearned(${word.id})"><i class="fas fa-trash"></i></button></td>
-            `;
-            tbody.appendChild(tr);
-        });
-        getActiveWordsCount().then(activeWordsCount => {
-            refillButton.disabled = activeWordsList.length >= activeWordsCount;
-            console.log('Refill button state:', refillButton.disabled, 'Current:', activeWordsList.length, 'Target:', activeWordsCount);
-        });
-    }
-}
-
-function markAsLearned(wordId) {
-    fetch('/learn/update', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `wordId=${wordId}&knows=true&forceLearned=true`
-    })
         .then(response => {
-            if (!response.ok) throw new Error('Ошибка при перемещении слова');
-            activeWordsList = activeWordsList.filter(word => word.id !== wordId);
-            learnWords = activeWordsList; // Обновляем learnWords для карточек
-            updateActiveWordsTable();
-            updateDashboardCounts();
+            if (!response.ok) {
+                throw new Error('Ошибка загрузки активных слов: ' + response.status);
+            }
+            return response.text();
+        })
+        .then(data => {
+            const words = JSON.parse(data);
+            const tbody = document.getElementById('activeWordsBody');
+            const noWordsMessage = document.getElementById('noActiveWords');
+            const refillButton = document.getElementById('refillButton');
+
+            tbody.innerHTML = '';
+
+            if (words.length === 0) {
+                noWordsMessage.style.display = 'block';
+                refillButton.disabled = false;
+            } else {
+                noWordsMessage.style.display = 'none';
+                refillButton.disabled = true;
+
+                words.forEach(word => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${word.word}</td>
+                        <td>${word.translation}</td>
+                        <td><button class="btn btn-sm btn-danger" onclick="removeWord(${word.id})">Удалить</button></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
         })
         .catch(error => {
             console.error('Ошибка:', error);
-            alert('Ошибка при перемещении слова');
+            document.getElementById('activeWordsBody').innerHTML = '<tr><td colspan="3">Ошибка загрузки слов</td></tr>';
         });
 }
 
-function refillActiveWords() {
-    getActiveWordsCount()
-        .then(activeWordsCount => {
-            console.log('Current active words:', activeWordsList.length, 'Target:', activeWordsCount);
-            if (activeWordsList.length < activeWordsCount) {
-                fetch('/learn/refill', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    }
-                })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Ошибка при пополнении слов');
-                        return response.json();
-                    })
-                    .then(data => {
-                        activeWordsList = data.activeWords;
-                        learnWords = activeWordsList; // Обновляем learnWords для карточек
-                        document.getElementById('activeWordsCount').textContent = data.activeCount;
-                        document.getElementById('learnedWordsCount').textContent = data.learnedCount;
-                        console.log('Refilled activeWordsList:', activeWordsList);
-                        console.log('Updated dashboard counts - Active:', data.activeCount, 'Learned:', data.learnedCount);
-                        updateActiveWordsTable();
-                        if (data.showTagPrompt) {
-                            const addTagsModal = new bootstrap.Modal(document.getElementById('addTagsModal'));
-                            const modalBody = document.getElementById('addTagsModal').querySelector('.modal-body');
-                            const existingPrompt = modalBody.querySelector('.prompt-message');
-                            if (existingPrompt) existingPrompt.remove();
-                            const prompt = document.createElement('p');
-                            prompt.className = 'prompt-message';
-                            prompt.innerHTML = `Для вашей программы найдено только ${data.activeCount} слов. Чтобы начать обучение, нужно как минимум ${activeWordsCount} слов. Пожалуйста, выберите дополнительные темы:`;
-                            modalBody.insertBefore(prompt, modalBody.querySelector('form'));
-                            selectedAdditionalTags.clear();
-                            modalBody.querySelectorAll('.tag-card').forEach(card => card.classList.remove('selected'));
-                            const form = document.getElementById('addTagsForm');
-                            form.onsubmit = function(event) {
-                                event.preventDefault();
-                                fetch('/dashboard/add-tags', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/x-www-form-urlencoded'
-                                    },
-                                    body: `tags=${Array.from(selectedAdditionalTags).join(',')}`
-                                })
-                                    .then(response => {
-                                        if (!response.ok) throw new Error('Ошибка при добавлении тегов');
-                                        addTagsModal.hide();
-                                        refillActiveWords();
-                                    })
-                                    .catch(error => console.error('Error adding tags:', error));
-                            };
-                            addTagsModal.show();
-                        }
-                    })
-                    .catch(error => console.error('Error refilling active words:', error));
-            } else {
-                console.log('No refill needed, active words count is sufficient');
+function removeWord(wordId) {
+    fetch('/dashboard/remove-word', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ wordId: wordId })
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Ошибка удаления слова: ' + response.status);
             }
-        });
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 'success') {
+                loadActiveWords(); // Обновляем список активных слов
+                updateDashboardCounts(); // Обновляем счетчики на дашборде
+            }
+        })
+        .catch(error => console.error('Ошибка удаления слова:', error));
 }
 
-function toggleAdditionalTag(card) {
-    const tag = card.getAttribute('data-tag');
-    if (selectedAdditionalTags.has(tag)) {
-        selectedAdditionalTags.delete(tag);
-        card.classList.remove('selected');
+document.addEventListener('DOMContentLoaded', function () {
+    const modalElement = document.getElementById('activeWordsModal');
+    if (modalElement) {
+        modalElement.addEventListener('shown.bs.modal', function () {
+            loadActiveWords();
+        });
     } else {
-        selectedAdditionalTags.add(tag);
-        card.classList.add('selected');
+        console.error("Элемент #activeWordsModal не найден в DOM");
     }
-    document.getElementById('additionalTags').value = Array.from(selectedAdditionalTags).join(',');
-}
-
-function initActiveWordsModal() {
-    const activeWordsModal = document.getElementById('activeWordsModal');
-    activeWordsModal.addEventListener('show.bs.modal', function () {
-        if (activeWordsList.length === 0) {
-            loadActiveWords(updateActiveWordsTable);
-        } else {
-            updateActiveWordsTable();
-        }
-    });
-
-    const addTagsLink = document.querySelector('a[data-bs-target="#addTagsModal"]');
-    if (addTagsLink) {
-        addTagsLink.addEventListener('click', function(event) {
-            event.preventDefault();
-            const addTagsModal = new bootstrap.Modal(document.getElementById('addTagsModal'));
-            const modalBody = document.getElementById('addTagsModal').querySelector('.modal-body');
-            const existingPrompt = modalBody.querySelector('.prompt-message');
-            if (existingPrompt) existingPrompt.remove();
-            selectedAdditionalTags.clear();
-            modalBody.querySelectorAll('.tag-card').forEach(card => card.classList.remove('selected'));
-            addTagsModal.show();
-        });
-    }
-}
+});
