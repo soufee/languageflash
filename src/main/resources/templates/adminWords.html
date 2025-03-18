@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Админка - Слова - Language Flash</title>
-    <!-- Подключаем все ресурсы одной строкой -->
     <div th:replace="~{fragments/resources :: resources}"></div>
 </head>
 <body>
@@ -24,7 +23,7 @@
             </button>
         </div>
 
-        <!-- Форма фильтрации -->
+        <!-- Форма фильтрации и выбора размера страницы -->
         <form th:action="@{/admin/words}" method="get" class="mb-4">
             <div class="row">
                 <div class="col-md-4 mb-3">
@@ -35,12 +34,21 @@
                     <label for="translationFilter" class="form-label">Перевод</label>
                     <input type="text" class="form-control" id="translationFilter" name="translationFilter" th:value="${translationFilter}">
                 </div>
-                <div class="col-md-4 mb-3 d-flex align-items-end">
+                <div class="col-md-2 mb-3">
+                    <label for="size" class="form-label">Записей на странице</label>
+                    <select class="form-select" id="size" name="size" onchange="this.form.submit()">
+                        <option value="25" th:selected="${wordsPage.size == 25}">25</option>
+                        <option value="50" th:selected="${wordsPage.size == 50}">50</option>
+                        <option value="100" th:selected="${wordsPage.size == 100}">100</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">
                         <i class="fas fa-filter me-2"></i> Применить
                     </button>
                 </div>
             </div>
+            <input type="hidden" name="page" value="0">
         </form>
 
         <!-- Таблица слов -->
@@ -87,18 +95,38 @@
         <!-- Пагинация -->
         <nav th:if="${wordsPage.totalPages > 1}" class="d-flex justify-content-center mt-4">
             <ul class="pagination">
+                <!-- Первая страница -->
+                <li class="page-item" th:classappend="${wordsPage.number == 0 ? 'disabled' : ''}">
+                    <a class="page-link" th:href="@{/admin/words(page=0,size=${wordsPage.size},wordFilter=${wordFilter},translationFilter=${translationFilter})}">
+                        Первая
+                    </a>
+                </li>
+                <!-- Предыдущая страница -->
                 <li class="page-item" th:classappend="${wordsPage.number == 0 ? 'disabled' : ''}">
                     <a class="page-link" th:href="@{/admin/words(page=${wordsPage.number - 1},size=${wordsPage.size},wordFilter=${wordFilter},translationFilter=${translationFilter})}">
                         <i class="fas fa-chevron-left"></i>
                     </a>
                 </li>
-                <li class="page-item" th:each="i : ${#numbers.sequence(0, wordsPage.totalPages - 1)}"
-                    th:classappend="${wordsPage.number == i ? 'active' : ''}">
-                    <a class="page-link" th:href="@{/admin/words(page=${i},size=${wordsPage.size},wordFilter=${wordFilter},translationFilter=${translationFilter})}" th:text="${i + 1}"></a>
+                <!-- Первые страницы -->
+                <th:block th:each="i : ${#numbers.sequence(0, wordsPage.totalPages - 1)}" th:if="${i < 5 or i >= wordsPage.totalPages - 2 or (i >= wordsPage.number - 2 and i <= wordsPage.number + 2)}">
+                    <li class="page-item" th:classappend="${wordsPage.number == i ? 'active' : ''}">
+                        <a class="page-link" th:href="@{/admin/words(page=${i},size=${wordsPage.size},wordFilter=${wordFilter},translationFilter=${translationFilter})}" th:text="${i + 1}"></a>
+                    </li>
+                </th:block>
+                <!-- Троеточие -->
+                <li class="page-item disabled" th:if="${wordsPage.number > 6 and wordsPage.totalPages > 8}">
+                    <span class="page-link">...</span>
                 </li>
+                <!-- Следующая страница -->
                 <li class="page-item" th:classappend="${wordsPage.number == wordsPage.totalPages - 1 ? 'disabled' : ''}">
                     <a class="page-link" th:href="@{/admin/words(page=${wordsPage.number + 1},size=${wordsPage.size},wordFilter=${wordFilter},translationFilter=${translationFilter})}">
                         <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                <!-- Последняя страница -->
+                <li class="page-item" th:classappend="${wordsPage.number == wordsPage.totalPages - 1 ? 'disabled' : ''}">
+                    <a class="page-link" th:href="@{/admin/words(page=${wordsPage.totalPages - 1},size=${wordsPage.size},wordFilter=${wordFilter},translationFilter=${translationFilter})}">
+                        Последняя
                     </a>
                 </li>
             </ul>
@@ -212,6 +240,7 @@
 </div>
 
 <div th:replace="~{fragments/footer :: footer}"></div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var editWordModal = document.getElementById('editWordModal');

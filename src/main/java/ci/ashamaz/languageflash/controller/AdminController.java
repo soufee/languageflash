@@ -1,7 +1,6 @@
 package ci.ashamaz.languageflash.controller;
 
 import ci.ashamaz.languageflash.model.*;
-import ci.ashamaz.languageflash.repository.WordRepository;
 import ci.ashamaz.languageflash.service.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,8 +35,6 @@ public class AdminController {
     private LanguageLevelService languageLevelService;
     @Autowired
     private WordService wordService;
-    @Autowired
-    private WordRepository wordRepository;
     @Autowired
     private EmailService emailService;
 
@@ -230,16 +227,7 @@ public class AdminController {
         log.info("Handling GET /admin/words with wordFilter={}, translationFilter={}", wordFilter, translationFilter);
         Pageable pageable = PageRequest.of(page, size, Sort.by("level").ascending().and(Sort.by("word").ascending()));
 
-        Page<Word> wordsPage;
-        if (wordFilter != null && !wordFilter.isEmpty() && translationFilter != null && !translationFilter.isEmpty()) {
-            wordsPage = wordRepository.findByWordStartingWithAndTranslationStartingWith(wordFilter, translationFilter, pageable);
-        } else if (wordFilter != null && !wordFilter.isEmpty()) {
-            wordsPage = wordRepository.findByWordStartingWith(wordFilter, pageable);
-        } else if (translationFilter != null && !translationFilter.isEmpty()) {
-            wordsPage = wordRepository.findByTranslationStartingWith(translationFilter, pageable);
-        } else {
-            wordsPage = wordRepository.findAll(pageable);
-        }
+        Page<Word> wordsPage = wordService.getFilteredWords(wordFilter, translationFilter, pageable);
 
         Map<Long, String> wordTagsMap = new HashMap<>();
         Map<Long, String> wordTagNamesMap = new HashMap<>();
@@ -261,8 +249,8 @@ public class AdminController {
         model.addAttribute("tags", Tag.values());
         model.addAttribute("wordTagsMap", wordTagsMap);
         model.addAttribute("wordTagNamesMap", wordTagNamesMap);
-        model.addAttribute("wordFilter", wordFilter); // Для сохранения значения фильтра в форме
-        model.addAttribute("translationFilter", translationFilter); // Для сохранения значения фильтра в форме
+        model.addAttribute("wordFilter", wordFilter);
+        model.addAttribute("translationFilter", translationFilter);
 
         return "adminWords";
     }

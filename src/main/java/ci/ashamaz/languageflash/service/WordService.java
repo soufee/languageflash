@@ -7,7 +7,6 @@ import ci.ashamaz.languageflash.repository.WordProgressRepository;
 import ci.ashamaz.languageflash.repository.WordRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -35,28 +34,6 @@ public class WordService {
     @Autowired
     private UserService userService;
 
-    @Cacheable("wordsByLanguage")
-    public List<Word> getWordsByLanguage(@NotNull Long languageId) {
-        log.info("Retrieving words for languageId: {}", languageId);
-        List<Word> words = wordRepository.findByLanguageId(languageId);
-        log.debug("Found {} words for languageId: {}", words.size(), languageId);
-        return words;
-    }
-
-    public List<Word> getWordsByLanguageAndMinLevel(@NotNull Long languageId, @NotEmpty String minLevel) {
-        log.info("Retrieving words for languageId: {} with minLevel: {}", languageId, minLevel);
-        List<Word> words = wordRepository.findByLanguageIdAndMinLevel(languageId, minLevel);
-        log.debug("Found {} words for languageId: {} and minLevel: {}", words.size(), languageId, minLevel);
-        return words;
-    }
-
-    public List<Word> getWordsByLanguageLevelAndTag(@NotNull Long languageId, @NotEmpty String minLevel, @NotEmpty String tag) {
-        log.info("Retrieving words for languageId: {}, minLevel: {}, tag: {}", languageId, minLevel, tag);
-        List<Word> words = wordRepository.findByLanguageIdAndMinLevelAndTag(languageId, minLevel, tag);
-        log.debug("Found {} words for languageId: {}, minLevel: {}, tag: {}", words.size(), languageId, minLevel, tag);
-        return words;
-    }
-
     public Word getWordById(@NotNull Long id) {
         log.info("Retrieving word by id: {}", id);
         return wordRepository.findById(id)
@@ -66,9 +43,17 @@ public class WordService {
                 });
     }
 
-    public Page<Word> getAllWords(@NotNull Pageable pageable) {
-        log.info("Retrieving all words with pagination");
-        return wordRepository.findAll(pageable);
+    public Page<Word> getFilteredWords(String wordFilter, String translationFilter, @NotNull Pageable pageable) {
+        log.info("Retrieving filtered words with wordFilter={}, translationFilter={}", wordFilter, translationFilter);
+        if (wordFilter != null && !wordFilter.isEmpty() && translationFilter != null && !translationFilter.isEmpty()) {
+            return wordRepository.findByWordStartingWithAndTranslationStartingWith(wordFilter, translationFilter, pageable);
+        } else if (wordFilter != null && !wordFilter.isEmpty()) {
+            return wordRepository.findByWordStartingWith(wordFilter, pageable);
+        } else if (translationFilter != null && !translationFilter.isEmpty()) {
+            return wordRepository.findByTranslationStartingWith(translationFilter, pageable);
+        } else {
+            return wordRepository.findAll(pageable);
+        }
     }
 
     @Transactional
