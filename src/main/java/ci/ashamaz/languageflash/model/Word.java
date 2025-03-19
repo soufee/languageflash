@@ -1,9 +1,9 @@
 package ci.ashamaz.languageflash.model;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 import lombok.Setter;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
 
 import javax.persistence.*;
 import java.io.IOException;
@@ -12,26 +12,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Entity
-@Table(name = "words")
+@DiscriminatorValue("WORD")
 @Getter
 @Setter
-public class Word {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
-    private String word;
-
-    @Column(nullable = false)
-    private String translation;
-
-    @Column(nullable = false)
-    private String exampleSentence;
-
-    @Column(nullable = false)
-    private String exampleTranslation;
-
+public class Word extends AbstractWord {
     @ManyToOne
     @JoinColumn(name = "language_id", nullable = false)
     private Language language;

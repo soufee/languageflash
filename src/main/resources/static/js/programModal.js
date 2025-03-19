@@ -43,7 +43,7 @@ function loadLevels(languageName) {
 }
 
 function resetProgram() {
-    if (confirm('Вы уверены, что хотите сбросить все настройки программы?')) {
+    if (confirm('Вы уверены, что хотите сбросить все настройки программы? Это удалит все активные и выученные слова.')) {
         fetch('/dashboard/reset-settings', { method: 'POST' })
             .then(response => {
                 if (response.ok) {
@@ -88,9 +88,9 @@ function initProgramModal() {
     if (tagsInput) {
         const initialTags = tagsInput.value ? tagsInput.value.split(',') : [];
         initialTags.forEach(tag => {
-            const card = document.querySelector(`.tag-card[data-tag="${tag}"]`);
+            const card = document.querySelector(`.tag-card[data-tag="${tag.trim()}"]`);
             if (card) {
-                selectedTags.add(tag);
+                selectedTags.add(tag.trim());
                 card.classList.add('selected');
             }
         });

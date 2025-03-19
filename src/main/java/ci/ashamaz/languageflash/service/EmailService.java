@@ -1,5 +1,6 @@
 package ci.ashamaz.languageflash.service;
 
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -14,9 +15,11 @@ import javax.mail.internet.MimeMessage;
 public class EmailService {
 
     @Autowired
+    @Setter
     private JavaMailSender mailSender;
 
     @Value("${spring.mail.username}")
+    @Setter
     private String fromEmail;
 
     @Async

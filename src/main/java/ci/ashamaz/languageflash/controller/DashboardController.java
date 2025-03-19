@@ -1,10 +1,8 @@
 package ci.ashamaz.languageflash.controller;
 
 import ci.ashamaz.languageflash.model.*;
-import ci.ashamaz.languageflash.service.LanguageService;
-import ci.ashamaz.languageflash.service.UserService;
-import ci.ashamaz.languageflash.service.WordProgressService;
-import ci.ashamaz.languageflash.service.WordService;
+import ci.ashamaz.languageflash.repository.WordRepository;
+import ci.ashamaz.languageflash.service.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -15,8 +13,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -36,6 +34,9 @@ public class DashboardController {
     @Autowired
     private WordService wordService;
 
+    @Autowired
+    private WordRepository wordRepository;
+
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @GetMapping(value = "/dashboard", produces = "text/html;charset=UTF-8")
@@ -46,6 +47,7 @@ public class DashboardController {
         }
         log.info("Loading dashboard for user: {}", user.getEmail());
         model.addAttribute("user", user);
+        model.addAttribute("userId", user.getId());
 
         List<Language> activeLanguages = languageService.getAllLanguages().stream()
                 .filter(Language::isActive)
@@ -89,6 +91,9 @@ public class DashboardController {
                 : Collections.emptyList();
         model.addAttribute("tagRussianNames", tagRussianNames);
 
+        List<AbstractWord> customWords = wordRepository.findCustomWordsByUserId(user.getId());
+        model.addAttribute("customWordsCount", customWords.size());
+
         return "dashboard";
     }
 
@@ -117,7 +122,10 @@ public class DashboardController {
 
         userService.updateSettings(user.getId(), settings);
 
-        initializeLearningWords(user, language, minLevel, tagList, activeWordsCount, 0, model);
+        // Передаём реальное количество текущих активных слов
+        List<WordProgress> currentActiveWords = wordProgressService.getActiveProgress(user.getId());
+        int currentActiveCount = currentActiveWords.size();
+        initializeLearningWords(user, language, minLevel, tagList, activeWordsCount, currentActiveCount, model);
 
         return "redirect:/dashboard";
     }
@@ -166,6 +174,7 @@ public class DashboardController {
         }
         List<WordProgress> activeProgress = wordProgressService.getActiveProgress(user.getId());
         List<Map<String, Object>> activeWordsJson = activeProgress.stream()
+                .filter(wp -> !(wp.getWord() instanceof CustomWord))
                 .map(wp -> {
                     Map<String, Object> wordData = new HashMap<>();
                     wordData.put("id", wp.getWord().getId());
@@ -215,15 +224,24 @@ public class DashboardController {
 
     private void initializeLearningWords(User user, String language, String minLevel, List<String> tagList, int activeWordsCount, int currentActiveCount, Model model) {
         try {
-            List<Word> selectedWords = wordService.selectWordsForLearning(user.getId(), language, minLevel, tagList, currentActiveCount);
-            model.addAttribute("selectedWords", selectedWords);
-            if (selectedWords.size() < activeWordsCount && tagList.size() < Tag.values().length) {
+            if (currentActiveCount < activeWordsCount) {
+                List<Word> selectedWords = wordService.selectWordsForLearning(user.getId(), language, minLevel, tagList, currentActiveCount);
+                int wordsToAdd = Math.min(activeWordsCount - currentActiveCount, selectedWords.size());
+                if (wordsToAdd > 0) {
+                    wordProgressService.initializeProgress(user.getId(), selectedWords.subList(0, wordsToAdd));
+                    log.info("Initialized {} new words for user {}", wordsToAdd, user.getEmail());
+                }
+                model.addAttribute("selectedWords", selectedWords.subList(0, wordsToAdd));
+            } else {
+                log.info("No new words needed, current active count: {} meets or exceeds target: {}", currentActiveCount, activeWordsCount);
+            }
+
+            List<WordProgress> updatedActiveWords = wordProgressService.getActiveProgress(user.getId());
+            if (updatedActiveWords.size() < activeWordsCount && tagList.size() < Tag.values().length) {
                 model.addAttribute("showTagPrompt", true);
                 model.addAttribute("availableTags", Arrays.stream(Tag.values())
                         .filter(tag -> !tagList.contains(tag.name()))
                         .collect(Collectors.toList()));
-            } else {
-                wordProgressService.initializeProgress(user.getId(), selectedWords.subList(0, Math.min(activeWordsCount - currentActiveCount, selectedWords.size())));
             }
         } catch (Exception e) {
             log.error("Error initializing learning words for user: {}, error: {}", user.getEmail(), e.getMessage());
@@ -255,8 +273,13 @@ public class DashboardController {
         List<WordProgress> activeWords = wordProgressService.getActiveProgress(user.getId());
         int currentActiveCount = activeWords.size();
 
-        List<Word> selectedWords = wordService.selectWordsForLearning(user.getId(), language, minLevel, updatedTags, currentActiveCount);
-        wordProgressService.initializeProgress(user.getId(), selectedWords.subList(0, Math.min(activeWordsCount - currentActiveCount, selectedWords.size())));
+        if (currentActiveCount < activeWordsCount) {
+            List<Word> selectedWords = wordService.selectWordsForLearning(user.getId(), language, minLevel, updatedTags, currentActiveCount);
+            int wordsToAdd = Math.min(activeWordsCount - currentActiveCount, selectedWords.size());
+            if (wordsToAdd > 0) {
+                wordProgressService.initializeProgress(user.getId(), selectedWords.subList(0, wordsToAdd));
+            }
+        }
 
         List<WordProgress> updatedActiveWords = wordProgressService.getActiveProgress(user.getId());
         if (updatedActiveWords.size() < activeWordsCount && updatedTags.size() < Tag.values().length) {
@@ -305,6 +328,141 @@ public class DashboardController {
         wordProgressService.updateProgress(user.getId(), wordId, knows);
 
         Map<String, String> response = new HashMap<>();
+        response.put("status", "success");
+        return response;
+    }
+
+    @GetMapping("/dashboard/custom-words")
+    @ResponseBody
+    public List<Map<String, Object>> getCustomWords(HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return Collections.emptyList();
+        }
+        List<AbstractWord> customWords = wordRepository.findCustomWordsByUserId(user.getId());
+        return customWords.stream()
+                .map(word -> {
+                    Map<String, Object> wordData = new HashMap<>();
+                    wordData.put("id", word.getId());
+                    wordData.put("word", word.getWord());
+                    wordData.put("translation", word.getTranslation());
+                    wordData.put("exampleSentence", word.getExampleSentence());
+                    wordData.put("exampleTranslation", word.getExampleTranslation());
+                    return wordData;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @PostMapping("/dashboard/custom-words/check-autocomplete")
+    @ResponseBody
+    public Map<String, Object> checkAutocomplete(@RequestBody Map<String, String> requestBody, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            throw new IllegalStateException("Пользователь не авторизован");
+        }
+        String word = requestBody.get("word");
+
+        Map<String, Object> response = new HashMap<>();
+
+        List<Word> foundWords = wordRepository.findByWordStartingWith(word.toLowerCase());
+        log.info("Found {} words starting with '{}'", foundWords.size(), word);
+        Optional<Word> existingWord = foundWords.stream()
+                .filter(w -> w.getWord().equalsIgnoreCase(word))
+                .findFirst();
+        if (existingWord.isPresent()) {
+            log.info("Autocomplete found for word '{}': translation='{}', example='{}', exampleTranslation='{}'",
+                    word, existingWord.get().getTranslation(), existingWord.get().getExampleSentence(), existingWord.get().getExampleTranslation());
+            response.put("status", "autocomplete");
+            response.put("translation", existingWord.get().getTranslation());
+            response.put("exampleSentence", existingWord.get().getExampleSentence());
+            response.put("exampleTranslation", existingWord.get().getExampleTranslation());
+            return response;
+        }
+
+        log.info("No autocomplete found for word '{}'", word);
+        response.put("status", "ok");
+        return response;
+    }
+
+    @PostMapping("/dashboard/custom-words/check-duplicates")
+    @ResponseBody
+    public Map<String, Object> checkDuplicates(@RequestBody Map<String, String> requestBody, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            throw new IllegalStateException("Пользователь не авторизован");
+        }
+        String word = requestBody.get("word");
+        String translation = requestBody.get("translation");
+
+        Map<String, Object> response = new HashMap<>();
+        List<WordProgress> customWords = wordProgressService.getCustomWordsProgress(user.getId());
+
+        Optional<WordProgress> duplicate = customWords.stream()
+                .filter(wp -> wp.getWord().getWord().equalsIgnoreCase(word))
+                .findFirst();
+        if (duplicate.isPresent()) {
+            if (duplicate.get().getWord().getTranslation().equalsIgnoreCase(translation)) {
+                response.put("status", "error");
+                response.put("message", "Это слово с переводом уже присутствует в вашем словаре");
+            } else {
+                response.put("status", "warning");
+                response.put("message", "Вы уверены, что хотите сохранить слово '" + word + "' с переводом '" + translation +
+                        "'? Это слово уже присутствует в вашем словаре с переводом '" + duplicate.get().getWord().getTranslation() +
+                        "'. Это может запутать вас во время изучения. Рекомендуем омонимы изучать в разных словарях.");
+                response.put("existingTranslation", duplicate.get().getWord().getTranslation());
+            }
+            return response;
+        }
+
+        response.put("status", "ok");
+        return response;
+    }
+
+    @PostMapping("/dashboard/custom-words/add")
+    @ResponseBody
+    public Map<String, Object> addCustomWord(@RequestBody Map<String, String> requestBody, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            throw new IllegalStateException("Пользователь не авторизован");
+        }
+        String word = requestBody.get("word");
+        String translation = requestBody.get("translation");
+        String exampleSentence = requestBody.get("exampleSentence") != null && !requestBody.get("exampleSentence").isEmpty()
+                ? requestBody.get("exampleSentence")
+                : "";
+        String exampleTranslation = requestBody.get("exampleTranslation") != null && !requestBody.get("exampleTranslation").isEmpty()
+                ? requestBody.get("exampleTranslation")
+                : "";
+
+        Map<String, Object> response = new HashMap<>();
+        List<WordProgress> customWords = wordProgressService.getCustomWordsProgress(user.getId());
+
+        Optional<WordProgress> duplicate = customWords.stream()
+                .filter(wp -> wp.getWord().getWord().equalsIgnoreCase(word))
+                .findFirst();
+        if (duplicate.isPresent()) {
+            if (duplicate.get().getWord().getTranslation().equalsIgnoreCase(translation)) {
+                response.put("status", "error");
+                response.put("message", "Это слово с переводом уже присутствует в вашем словаре");
+                return response;
+            } else if (!requestBody.containsKey("force")) {
+                response.put("status", "warning");
+                response.put("message", "Вы уверены, что хотите сохранить слово '" + word + "' с переводом '" + translation +
+                        "'? Это слово уже присутствует в вашем словаре с переводом '" + duplicate.get().getWord().getTranslation() +
+                        "'. Это может запутать вас во время изучения. Рекомендуем омонимы изучать в разных словарях.");
+                response.put("existingTranslation", duplicate.get().getWord().getTranslation());
+                return response;
+            }
+        }
+
+        CustomWord customWord = new CustomWord();
+        customWord.setWord(word);
+        customWord.setTranslation(translation);
+        customWord.setExampleSentence(exampleSentence);
+        customWord.setExampleTranslation(exampleTranslation);
+        customWord.setUser(user);
+        wordRepository.save(customWord);
+
         response.put("status", "success");
         return response;
     }

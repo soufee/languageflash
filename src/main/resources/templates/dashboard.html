@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Личный кабинет - Language Flash</title>
-    <!-- Подключаем все ресурсы одной строкой -->
     <div th:replace="~{fragments/resources :: resources}"></div>
 </head>
 <body>
@@ -35,14 +34,26 @@
             <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#activeWordsModal">
                 Посмотреть активные слова
             </button>
-            <p>Выученных слов: <span id="learnedWordsCount" th:text="${learnedCount}"></span></p>
-            <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#learnedWordsModal">
-                Посмотреть выученные слова
-            </button>
             <a href="#" class="btn btn-primary" th:classappend="${settings['language'] == null ? 'disabled' : ''}"
                onclick="initLearnModal()" data-bs-toggle="modal" data-bs-target="#learnModal">Карточки</a>
             <a href="#" class="btn btn-secondary ms-2" th:classappend="${settings['language'] == null ? 'disabled' : ''}"
                data-bs-toggle="modal" data-bs-target="#flashLearnModal">Флеш-запоминание</a>
+        </div>
+        <div class="mb-4">
+            <p>Выученных слов: <span id="learnedWordsCount" th:text="${learnedCount}"></span></p>
+            <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#learnedWordsModal">
+                Посмотреть выученные слова
+            </button>
+
+        </div>
+
+        <!-- Мой словарь -->
+        <div class="mb-4">
+            <h3>Мой словарь</h3>
+            <p>Слов в словаре: <span id="customWordsCount" th:text="${customWordsCount}"></span></p>
+            <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#customWordsModal">
+                Посмотреть слова
+            </button>
         </div>
     </div>
 </section>
@@ -54,6 +65,7 @@
 <div th:replace="~{fragments/modals/learnModal :: learnModal}"></div>
 <div th:replace="~{fragments/modals/flashLearnModal :: flashLearnModal}"></div>
 <div th:replace="~{fragments/modals/addTagsModal :: addTagsModal}"></div>
+<div th:replace="~{fragments/modals/customWordsModal :: customWordsModal}"></div>
 
 <div th:replace="~{fragments/footer :: footer}"></div>
 </body>

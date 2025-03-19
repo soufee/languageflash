@@ -1,8 +1,6 @@
 package ci.ashamaz.languageflash.service;
 
-import ci.ashamaz.languageflash.model.Language;
-import ci.ashamaz.languageflash.model.Tag;
-import ci.ashamaz.languageflash.model.Word;
+import ci.ashamaz.languageflash.model.*;
 import ci.ashamaz.languageflash.repository.WordProgressRepository;
 import ci.ashamaz.languageflash.repository.WordRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -34,13 +32,27 @@ public class WordService {
     @Autowired
     private UserService userService;
 
-    public Word getWordById(@NotNull Long id) {
+    public AbstractWord getWordById(@NotNull Long id) {
         log.info("Retrieving word by id: {}", id);
         return wordRepository.findById(id)
                 .orElseThrow(() -> {
                     log.error("Word with id {} not found", id);
                     return new IllegalArgumentException("Слово с ID " + id + " не найдено");
                 });
+    }
+
+    public Word getWordByIdAsWord(@NotNull Long id) {
+        log.info("Retrieving Word by id: {}", id);
+        AbstractWord abstractWord = wordRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.error("Word with id {} not found", id);
+                    return new IllegalArgumentException("Слово с ID " + id + " не найдено");
+                });
+        if (!(abstractWord instanceof Word)) {
+            log.error("Word with id {} is not a Word type, but {}", id, abstractWord.getClass().getSimpleName());
+            throw new IllegalArgumentException("Слово с ID " + id + " не является общим словом и не может быть отредактировано здесь");
+        }
+        return (Word) abstractWord;
     }
 
     public Page<Word> getFilteredWords(String wordFilter, String translationFilter, @NotNull Pageable pageable) {
@@ -52,12 +64,12 @@ public class WordService {
         } else if (translationFilter != null && !translationFilter.isEmpty()) {
             return wordRepository.findByTranslationStartingWith(translationFilter, pageable);
         } else {
-            return wordRepository.findAll(pageable);
+            return wordRepository.findAllWords(pageable); // Используем новый метод для Word
         }
     }
 
     @Transactional
-    public void save(@NotNull Word word) {
+    public void save(@NotNull AbstractWord word) {
         log.info("Saving word: {}", word);
         wordRepository.save(word);
     }
@@ -83,7 +95,7 @@ public class WordService {
                 ? tags.stream().map(Tag::valueOf).collect(Collectors.toSet())
                 : null;
         newWord.setTagsAsSet(tagSet);
-        Word savedWord = wordRepository.save(newWord);
+        Word savedWord = (Word) wordRepository.save(newWord);
         log.info("Word added: {}", savedWord);
         return savedWord;
     }

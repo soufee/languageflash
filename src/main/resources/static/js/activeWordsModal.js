@@ -14,23 +14,39 @@ function loadActiveWords() {
 
             tbody.innerHTML = '';
 
-            if (words.length === 0) {
-                noWordsMessage.style.display = 'block';
-                refillButton.disabled = false;
-            } else {
-                noWordsMessage.style.display = 'none';
-                refillButton.disabled = true;
+            // Получаем лимит активных слов из настроек
+            getActiveWordsCount()
+                .then(activeWordsCount => {
+                    if (words.length === 0) {
+                        noWordsMessage.style.display = 'block';
+                        refillButton.disabled = false;
+                    } else {
+                        noWordsMessage.style.display = 'none';
+                        // Кнопка активна, если слов меньше лимита
+                        refillButton.disabled = words.length >= activeWordsCount;
+                    }
 
-                words.forEach(word => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${word.word}</td>
-                        <td>${word.translation}</td>
-                        <td><button class="btn btn-sm btn-danger" onclick="removeWord(${word.id})">Удалить</button></td>
-                    `;
-                    tbody.appendChild(row);
+                    words.forEach(word => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${word.word}</td>
+                            <td>${word.translation}</td>
+                            <td><button class="btn btn-sm btn-danger" onclick="removeWord(${word.id})">Удалить</button></td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    console.error('Ошибка получения лимита активных слов:', error);
+                    // В случае ошибки оставляем старую логику как запасной вариант
+                    if (words.length === 0) {
+                        noWordsMessage.style.display = 'block';
+                        refillButton.disabled = false;
+                    } else {
+                        noWordsMessage.style.display = 'none';
+                        refillButton.disabled = true;
+                    }
                 });
-            }
         })
         .catch(error => {
             console.error('Ошибка:', error);
@@ -59,6 +75,26 @@ function removeWord(wordId) {
             }
         })
         .catch(error => console.error('Ошибка удаления слова:', error));
+}
+
+function refillActiveWords() {
+    fetch('/learn/refill', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Ошибка подгрузки слов: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            loadActiveWords(); // Обновляем список после подгрузки
+            updateDashboardCounts(); // Обновляем счетчики
+        })
+        .catch(error => console.error('Ошибка подгрузки слов:', error));
 }
 
 document.addEventListener('DOMContentLoaded', function () {

@@ -14,6 +14,7 @@ function initLearnModal() {
         })
         .then(data => {
             currentWords = JSON.parse(data);
+            currentWords = shuffleArray(currentWords); // Перемешиваем слова
             currentIndex = 0;
             showCardContent();
 
@@ -35,47 +36,56 @@ function initLearnModal() {
 }
 
 function showCardContent() {
+    const cardWord = document.getElementById('cardWord');
+    const cardTranslation = document.getElementById('cardTranslation');
+    const cardExample = document.getElementById('cardExample');
+    const cardExampleTranslation = document.getElementById('cardExampleTranslation');
+    const learnForm = document.getElementById('learnForm');
+    const noWordsMessage = document.getElementById('noWordsMessage');
+
     if (currentIndex < currentWords.length) {
         const word = currentWords[currentIndex];
 
-        // Сбрасываем состояние видимости для нового слова
         isTranslationVisible = false;
         isExampleVisible = false;
 
-        document.getElementById('cardWord').textContent = word.word;
-        document.getElementById('cardTranslation').textContent = word.translation;
-        document.getElementById('cardTranslation').style.display = 'none';
-        document.getElementById('cardExample').textContent = word.exampleSentence || '';
-        document.getElementById('cardExample').style.display = 'none';
-        document.getElementById('cardExampleTranslation').textContent = word.exampleTranslation || '';
-        document.getElementById('cardExampleTranslation').style.display = 'none';
+        cardWord.textContent = word.word;
+        cardTranslation.textContent = word.translation;
+        cardTranslation.style.display = 'none';
+        cardExample.textContent = word.exampleSentence || '';
+        cardExample.style.display = 'none';
+        cardExampleTranslation.textContent = word.exampleTranslation || '';
+        cardExampleTranslation.style.display = 'none';
         document.getElementById('wordId').value = word.id;
 
-        // Устанавливаем обработчик для всего контейнера карточки
         const cardContainer = document.getElementById('cardContainer');
         cardContainer.onclick = function() {
             handleCardClick();
         };
 
-        document.getElementById('learnForm').style.display = 'inline';
-        document.getElementById('noWordsMessage').style.display = 'none';
+        learnForm.style.display = 'inline';
+        noWordsMessage.style.display = 'none';
     } else {
+        cardWord.textContent = '';
+        cardTranslation.textContent = '';
+        cardTranslation.style.display = 'none';
+        cardExample.textContent = '';
+        cardExample.style.display = 'none';
+        cardExampleTranslation.textContent = '';
+        cardExampleTranslation.style.display = 'none';
         showNoWordsMessage();
     }
 }
 
 function handleCardClick() {
     if (!isTranslationVisible) {
-        // Показываем перевод при первом клике
         document.getElementById('cardTranslation').style.display = 'block';
         isTranslationVisible = true;
     } else if (!isExampleVisible) {
-        // Показываем примеры при втором клике
         document.getElementById('cardExample').style.display = 'block';
         document.getElementById('cardExampleTranslation').style.display = 'block';
         isExampleVisible = true;
     } else {
-        // При третьем клике переходим к следующему слову
         currentIndex++;
         showCardContent();
     }
@@ -114,6 +124,7 @@ function refillWords() {
         .then(response => response.json())
         .then(data => {
             currentWords = data;
+            currentWords = shuffleArray(currentWords); // Перемешиваем новые слова
             currentIndex = 0;
             showCardContent();
         })
@@ -121,7 +132,7 @@ function refillWords() {
 }
 
 function getUserId() {
-    return window.userId || 1; // Замените на вашу логику получения userId
+    return window.userId;
 }
 
 function openLearnModal() {

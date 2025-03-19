@@ -1,0 +1,37 @@
+databaseChangeLog:
+  - changeSet:
+      id: 5.0-1
+      author: grok
+      changes:
+        - addColumn:
+            tableName: words
+            columns:
+              - column:
+                  name: type
+                  type: varchar(255)
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: true
+                    foreignKeyName: fk_words_user
+                    references: users(id)
+        - sql:
+            sql: UPDATE words SET type = 'WORD' WHERE type IS NULL
+        - addNotNullConstraint:
+            tableName: words
+            columnName: type
+            columnDataType: varchar(255)
+            defaultNullValue: 'WORD'
+        - dropNotNullConstraint:
+            tableName: words
+            columnName: example_sentence
+            columnDataType: text
+        - dropNotNullConstraint:
+            tableName: words
+            columnName: example_translation
+            columnDataType: text
+        - dropNotNullConstraint:
+            tableName: words
+            columnName: language_id
+            columnDataType: bigint

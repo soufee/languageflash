@@ -283,7 +283,7 @@ public class AdminController {
                            @RequestParam(value = "tags", required = false) List<String> tags) {
         log.info("Editing wordId: {}", wordId);
         try {
-            Word existingWord = wordService.getWordById(wordId);
+            Word existingWord = wordService.getWordByIdAsWord(wordId); // Изменено на getWordByIdAsWord
             existingWord.setWord(word);
             existingWord.setTranslation(translation);
             existingWord.setExampleSentence(exampleSentence);

@@ -4,6 +4,7 @@ import ci.ashamaz.languageflash.dto.RegisterRequest;
 import ci.ashamaz.languageflash.model.User;
 import ci.ashamaz.languageflash.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -46,6 +47,7 @@ public class UserService {
     private ResourceLoader resourceLoader;
 
     @Value("${app.base-url}")
+    @Setter
     private String baseUrl;
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");

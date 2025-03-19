@@ -1,8 +1,6 @@
 package ci.ashamaz.languageflash.service;
 
-import ci.ashamaz.languageflash.model.User;
-import ci.ashamaz.languageflash.model.Word;
-import ci.ashamaz.languageflash.model.WordProgress;
+import ci.ashamaz.languageflash.model.*;
 import ci.ashamaz.languageflash.repository.WordProgressRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +27,7 @@ public class WordProgressService {
     private WordService wordService;
 
     @Transactional
-    public void initializeProgress(Long userId, List<Word> words) {
+    public void initializeProgress(Long userId, List<Word> words) { // Оставляем List<Word>, так как это для основной программы
         log.info("Initializing progress for userId: {}, words count: {}", userId, words != null ? words.size() : 0);
         if (words == null || words.isEmpty()) {
             log.warn("No words provided for initializing progress for userId: {}", userId);
@@ -86,7 +84,7 @@ public class WordProgressService {
     public WordProgress initializeSingleProgress(Long userId, Long wordId) {
         log.info("Initializing single progress for userId: {}, wordId: {}", userId, wordId);
         User user = userService.getUserById(userId);
-        Word word = wordService.getWordById(wordId);
+        AbstractWord word = wordService.getWordById(wordId); // Изменено с Word на AbstractWord
 
         Optional<WordProgress> existingProgress = wordProgressRepository.findByUserIdAndWordId(userId, wordId);
         if (existingProgress.isPresent()) {
@@ -169,5 +167,14 @@ public class WordProgressService {
         wordProgressRepository.save(progress);
         log.debug("Progress saved: knowledgeFactor: {}, learned: {}",
                 progress.getKnowledgeFactor(), progress.isLearned());
+    }
+
+    public List<WordProgress> getCustomWordsProgress(Long userId) {
+        log.info("Retrieving custom words progress for userId: {}", userId);
+        List<WordProgress> progress = wordProgressRepository.findByUserId(userId).stream()
+                .filter(wp -> wp.getWord() instanceof CustomWord)
+                .collect(Collectors.toList());
+        log.debug("Found {} custom words progress entries for userId: {}", progress.size(), userId);
+        return progress;
     }
 }
