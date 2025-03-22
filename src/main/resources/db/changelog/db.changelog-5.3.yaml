@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 5.3-1
+      author: grok
+      changes:
+        - addColumn:
+            tableName: texts
+            columns:
+              - column:
+                  name: created_date
+                  type: datetime
+                  constraints:
+                    nullable: false
+                  defaultValueComputed: CURRENT_TIMESTAMP

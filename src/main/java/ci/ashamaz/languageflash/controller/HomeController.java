@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import javax.servlet.http.HttpSession;
 
 @Controller
-public class HomeController {
+public class HomeController extends CommonControllerUtil {
 
     @GetMapping("/")
     public String home(HttpSession session, Model model) {
@@ -33,22 +33,4 @@ public class HomeController {
         return "contacts";
     }
 
-    @GetMapping("/blog")
-    public String blog(HttpSession session, Model model) {
-        addAuthAttributes(session, model);
-        return "blog";
-    }
-
-    private void addAuthAttributes(HttpSession session, Model model) {
-        Object loginError = session.getAttribute("loginError");
-        if (loginError != null) {
-            model.addAttribute("loginError", loginError);
-            session.removeAttribute("loginError");
-        }
-        Object message = session.getAttribute("message");
-        if (message != null) {
-            model.addAttribute("message", message);
-            session.removeAttribute("message");
-        }
-    }
 }

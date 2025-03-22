@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 5.4-1
+      author: grok
+      changes:
+        - addColumn:
+            tableName: texts
+            columns:
+              - column:
+                  name: language_id
+                  type: bigint
+                  defaultValueNumeric: 6
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_texts_language
+                    references: languages(id)
+        - dropColumn:
+            tableName: texts
+            columnName: language

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Тексты - Language Flash</title>
+    <div th:replace="~{fragments/resources :: resources}"></div>
+    <style>
+        .text-preview { max-height: 100px; overflow: hidden; }
+        .text-card { margin-bottom: 20px; }
+        .sentence:hover { background-color: #f5f5f5; }
+        .highlight { background-color: #e0e7ff; }
+        .tag-list, .created-date { font-size: 0.8rem; color: #666; }
+        .sidebar { position: sticky; top: 20px; }
+        .pagination { margin-top: 20px; }
+        .edit-modal-body { display: flex; height: 70vh; }
+        .settings-column { width: 20%; padding-right: 15px; }
+        .text-columns { width: 80%; display: flex; flex-direction: column; }
+        .text-inputs { display: flex; flex-grow: 1; }
+        .text-inputs .form-control { height: 100%; resize: none; }
+        .text-inputs .col { padding: 0 5px; }
+        .json-input { margin-top: 15px; }
+        .json-input .form-control { height: 150px; resize: vertical; }
+        .title-en { font-size: 1.5rem; }
+        .title-ru { font-size: 1.25rem; color: #888; }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/header :: header}"></div>
+
+<section class="hero-section">
+    <div class="container">
+        <h1>Тексты</h1>
+        <form th:action="@{/texts}" method="get" class="mb-3">
+            <label for="languageSelect">Выберите язык:</label>
+            <select id="languageSelect" name="language" onchange="this.form.submit()" class="form-select d-inline w-auto">
+                <option th:each="lang : ${languages}" th:value="${lang.name}" th:text="${lang.name}"
+                        th:selected="${lang.name == selectedLanguage}"></option>
+            </select>
+        </form>
+    </div>
+</section>
+
+<section class="content-section">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-9">
+                <div th:if="${isAdmin}">
+                    <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#editTextModal" onclick="clearEditModal()">Добавить текст</button>
+                </div>
+                <div th:unless="${texts != null and !texts.isEmpty()}" class="alert alert-info">
+                    Нет текстов для выбранного языка и темы.
+                </div>
+                <div th:each="text : ${texts}" class="card text-card">
+                    <div class="card-body">
+                        <h5 class="card-title title-en" th:text="${text.title}"></h5>
+                        <p class="title-ru" th:text="${text.translation.substring(0, T(java.lang.Math).min(text.translation.length(), 50)) + (text.translation.length() > 50 ? '...' : '')}"></p>                        <p class="card-text text-preview" th:text="${#strings.abbreviate(text.content, 500)}"></p>
+                        <p class="tag-list" th:text="'Теги: ' + (${__${'russianTags_' + text.id}__} != null ? ${__${'russianTags_' + text.id}__} : '') + ', Уровень: ' + (${text.level != null ? text.level : ''})"></p>
+                        <p class="created-date" th:text="'Добавлено: ' + ${#temporals.format(text.createdDate, 'dd.MM.yyyy HH:mm')}"></p>
+                        <a href="#" class="card-link" data-bs-toggle="modal" data-bs-target="#viewTextModal" th:onclick="'loadText(' + ${text.id} + ')'">Читать далее >>></a>
+                        <div th:if="${isAdmin}" class="mt-2">
+                            <button class="btn btn-sm btn-warning me-2" data-bs-toggle="modal" data-bs-target="#editTextModal" th:onclick="'editText(' + ${text.id} + ')'">Редактировать</button>
+                            <button class="btn btn-sm btn-danger" th:onclick="'deleteText(' + ${text.id} + ')'">Удалить</button>
+                        </div>
+                    </div>
+                </div>
+                <nav th:if="${page.totalPages > 1}" class="pagination">
+                    <ul class="pagination">
+                        <li class="page-item" th:classappend="${page.number == 0 ? 'disabled' : ''}">
+                            <a class="page-link" th:href="@{/texts(language=${selectedLanguage}, tag=${selectedTag}, page=${page.number - 1}, size=${page.size})}" aria-label="Previous">
+                                <span aria-hidden="true">«</span>
+                            </a>
+                        </li>
+                        <li class="page-item" th:each="i : ${#numbers.sequence(0, page.totalPages - 1)}" th:classappend="${page.number == i ? 'active' : ''}">
+                            <a class="page-link" th:href="@{/texts(language=${selectedLanguage}, tag=${selectedTag}, page=${i}, size=${page.size})}" th:text="${i + 1}"></a>
+                        </li>
+                        <li class="page-item" th:classappend="${page.number == page.totalPages - 1 ? 'disabled' : ''}">
+                            <a class="page-link" th:href="@{/texts(language=${selectedLanguage}, tag=${selectedTag}, page=${page.number + 1}, size=${page.size})}" aria-label="Next">
+                                <span aria-hidden="true">»</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="col-md-3">
+                <div class="sidebar">
+                    <h5>Темы</h5>
+                    <ul class="list-group">
+                        <li class="list-group-item">
+                            <a th:href="@{/texts(language=${selectedLanguage}, page=0, size=${page.size})}" th:classappend="${selectedTag == null ? 'active' : ''}">Все темы</a>
+                        </li>
+                        <li th:each="tag : ${tags}" class="list-group-item">
+                            <a th:href="@{/texts(language=${selectedLanguage}, tag=${tag.name}, page=0, size=${page.size})}" th:text="${tag.russianName}"
+                               th:classappend="${selectedTag == tag.name ? 'active' : ''}"></a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Модальное окно для просмотра текста -->
+<div class="modal fade" id="viewTextModal" tabindex="-1" aria-labelledby="viewTextModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewTextModalLabel">Текст</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="created-date" th:text="'Добавлено: ' + ${#temporals.format(page.content[0]?.createdDate, 'dd.MM.yyyy HH:mm')}"></p>
+                <div class="row">
+                    <div class="col-md-6" id="textContent"></div>
+                    <div class="col-md-6" id="textTranslation"></div>
+                </div>
+                <div id="textWords" class="mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button th:if="${isAuthenticated}" type="button" class="btn btn-primary" id="takeToWorkBtn">Взять в работу</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для редактирования текста (для админа) -->
+<div class="modal fade" id="editTextModal" tabindex="-1" aria-labelledby="editTextModalLabel" aria-hidden="true" sec:authorize="hasRole('ADMIN')">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editTextModalLabel">Редактировать текст</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body edit-modal-body">
+                <div class="settings-column">
+                    <form id="editTextForm">
+                        <input type="hidden" id="textId">
+                        <div class="mb-3">
+                            <label for="textTitle" class="form-label">Название</label>
+                            <input type="text" class="form-control" id="textTitle" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="textLanguage" class="form-label">Язык</label>
+                            <select id="textLanguage" class="form-select" required>
+                                <option th:each="lang : ${languages}" th:value="${lang.name}" th:text="${lang.name}"></option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="textLevel" class="form-label">Уровень</label>
+                            <select id="textLevel" class="form-select" required>
+                                <option th:each="level : ${T(ci.ashamaz.languageflash.model.Level).values()}" th:value="${level.name()}" th:text="${level.name()}"></option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="textTags" class="form-label">Теги</label>
+                            <select id="textTags" class="form-select" multiple>
+                                <option th:each="tag : ${tags}" th:value="${tag.name}" th:text="${tag.russianName}"></option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="text-columns">
+                    <div class="text-inputs">
+                        <div class="col">
+                            <label class="form-label">Text</label>
+                            <textarea class="form-control" id="editTextContent" name="content" required></textarea>
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Перевод</label>
+                            <textarea class="form-control" id="editTextTranslation" name="translation" required></textarea>
+                        </div>
+                    </div>
+                    <div class="json-input">
+                        <label for="textWordsJson" class="form-label">Слова (JSON)</label>
+                        <textarea class="form-control" id="textWordsJson" placeholder='[{"word": "example", "translation": "пример", "exampleSentence": "This is an example.", "exampleTranslation": "Это пример."}]'></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-info" onclick="previewText()">Предпросмотр</button>
+                <button type="button" class="btn btn-primary" onclick="saveText()">Сохранить</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+
+<script>
+    function loadText(textId) {
+        fetch('/texts/' + textId)
+            .then(response => response.json())
+            .then(data => {
+                const contentWithBreaks = data.content.replace(/\n/g, '<br>');
+                const translationWithBreaks = data.translation.replace(/\n/g, '<br>');
+                document.getElementById('textContent').innerHTML = contentWithBreaks.split('. ').map(s => '<p class="sentence">' + s + '</p>').join('');
+                document.getElementById('textTranslation').innerHTML = translationWithBreaks.split('. ').map(s => '<p class="sentence">' + s + '</p>').join('');
+                document.getElementById('textWords').innerHTML = '<h5>Словарь:</h5>' +
+                    data.words.map(w => `<p><strong>${w.word}</strong> - ${w.translation} (Пример: ${w.exampleSentence})</p>`).join('');
+                const russianTags = data.tags ? JSON.parse(data.tags).map(tag => {
+                    const tagMap = {
+                        "SONG_LYRICS": "Тексты песен",
+                        "BASIC_VOCABULARY": "Базовая лексика",
+                        "SPORTS": "Спорт"
+                    };
+                    return tagMap[tag] || tag;
+                }).join(', ') : '';
+                document.getElementById('textWords').innerHTML += `<p class="tag-list">Теги: ${russianTags}</p>`;
+                document.querySelector('#viewTextModal .created-date').textContent = 'Добавлено: ' + new Date(data.createdDate).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+                const sentences = document.querySelectorAll('#textContent .sentence');
+                const translations = document.querySelectorAll('#textTranslation .sentence');
+                sentences.forEach((s, i) => {
+                    s.addEventListener('mouseover', () => {
+                        translations[i].classList.add('highlight');
+                    });
+                    s.addEventListener('mouseout', () => {
+                        translations[i].classList.remove('highlight');
+                    });
+                });
+            })
+            .catch(error => console.error('Ошибка загрузки текста:', error));
+    }
+
+    function editText(textId) {
+        fetch('/texts/' + textId)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('textId').value = data.id;
+                document.getElementById('textTitle').value = data.title;
+                document.getElementById('textLanguage').value = data.language.name;
+                document.getElementById('textLevel').value = data.level;
+                document.getElementById('editTextContent').value = data.content;
+                document.getElementById('editTextTranslation').value = data.translation;
+                const tagsSelect = document.getElementById('textTags');
+                const tags = data.tags ? JSON.parse(data.tags) : [];
+                Array.from(tagsSelect.options).forEach(option => {
+                    option.selected = tags.includes(option.value);
+                });
+                const wordsJson = JSON.stringify(data.words.map(word => ({
+                    word: word.word,
+                    translation: word.translation,
+                    exampleSentence: word.exampleSentence,
+                    exampleTranslation: word.exampleTranslation
+                })), null, 2);
+                document.getElementById('textWordsJson').value = wordsJson;
+            })
+            .catch(error => console.error('Ошибка загрузки текста для редактирования:', error));
+    }
+
+    function clearEditModal() {
+        document.getElementById('textId').value = '';
+        document.getElementById('textTitle').value = '';
+        document.getElementById('textLanguage').value = '';
+        document.getElementById('textLevel').value = '';
+        document.getElementById('editTextContent').value = '';
+        document.getElementById('editTextTranslation').value = '';
+        document.getElementById('textWordsJson').value = '';
+        const tagsSelect = document.getElementById('textTags');
+        Array.from(tagsSelect.options).forEach(option => option.selected = false);
+    }
+
+    function saveText() {
+        const contentElement = document.getElementById('editTextContent');
+        const translationElement = document.getElementById('editTextTranslation');
+        const content = contentElement.value.trim();
+        const translation = translationElement.value.trim();
+
+        console.log('Raw content from textarea:', contentElement.value);
+        console.log('Raw translation from textarea:', translationElement.value);
+        console.log('Trimmed content:', content);
+        console.log('Trimmed translation:', translation);
+
+        if (!content || !translation) {
+            alert('Поля "Текст" и "Перевод" обязательны для заполнения');
+            return;
+        }
+
+        const selectedTags = Array.from(document.getElementById('textTags').selectedOptions).map(option => option.value);
+        const wordsJson = document.getElementById('textWordsJson').value.trim();
+        let words = [];
+        if (wordsJson) {
+            try {
+                words = JSON.parse(wordsJson);
+            } catch (e) {
+                alert('Ошибка в формате JSON слов: ' + e.message);
+                return;
+            }
+        }
+        const text = {
+            id: document.getElementById('textId').value || null,
+            title: document.getElementById('textTitle').value.trim(),
+            language: document.getElementById('textLanguage').value,
+            level: document.getElementById('textLevel').value,
+            tags: selectedTags.join(','),
+            content: content,
+            translation: translation,
+            words: words
+        };
+        console.log('Sending text data:', text);
+        const url = text.id ? '/admin/texts/edit' : '/admin/texts/add';
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(text)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Ошибка сохранения: ' + data.message);
+                }
+            })
+            .catch(error => alert('Ошибка сохранения текста: ' + error.message));
+    }
+
+    function previewText() {
+        const content = document.getElementById('editTextContent').value.replace(/\n/g, '<br>');
+        const translation = document.getElementById('editTextTranslation').value.replace(/\n/g, '<br>');
+        const wordsJson = document.getElementById('textWordsJson').value.trim();
+        let words = [];
+        if (wordsJson) {
+            try {
+                words = JSON.parse(wordsJson);
+            } catch (e) {
+                alert('Ошибка в формате JSON слов: ' + e.message);
+                return;
+            }
+        }
+
+        document.getElementById('textContent').innerHTML = content.split('. ').map(s => '<p class="sentence">' + s + '</p>').join('');
+        document.getElementById('textTranslation').innerHTML = translation.split('. ').map(s => '<p class="sentence">' + s + '</p>').join('');
+        document.getElementById('textWords').innerHTML = '<h5>Словарь:</h5>' +
+            words.map(w => `<p><strong>${w.word}</strong> - ${w.translation} (Пример: ${w.exampleSentence})</p>`).join('');
+        const selectedTags = Array.from(document.getElementById('textTags').selectedOptions).map(option => option.text).join(', ');
+        document.getElementById('textWords').innerHTML += `<p class="tag-list">Теги: ${selectedTags}</p>`;
+        document.querySelector('#viewTextModal .created-date').textContent = 'Предпросмотр';
+
+        const viewModal = new bootstrap.Modal(document.getElementById('viewTextModal'));
+        viewModal.show();
+    }
+</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'923f406409b632ed',t:'MTc0MjU3OTAwNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'923f89731c24ed88',t:'MTc0MjU4MTk5OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

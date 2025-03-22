@@ -1,0 +1,57 @@
+databaseChangeLog:
+  - changeSet:
+      id: 5.1-1
+      author: grok
+      changes:
+        - createTable:
+            tableName: texts
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: title
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: translation
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: language
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_active
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tags
+                  type: varchar(255)
+              - column:
+                  name: level
+                  type: varchar(50)
+        - addColumn:
+            tableName: words
+            columns:
+              - column:
+                  name: text_id
+                  type: bigint
+                  constraints:
+                    nullable: true
+                    foreignKeyName: fk_words_text
+                    references: texts(id)

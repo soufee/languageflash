@@ -1,6 +1,7 @@
 package ci.ashamaz.languageflash.repository;
 
 import ci.ashamaz.languageflash.model.AbstractWord;
+import ci.ashamaz.languageflash.model.TextWord;
 import ci.ashamaz.languageflash.model.Word;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,7 +33,9 @@ public interface WordRepository extends JpaRepository<AbstractWord, Long> {
     @Query("SELECT w FROM CustomWord w WHERE w.user.id = :userId")
     List<AbstractWord> findCustomWordsByUserId(@Param("userId") Long userId);
 
-    // Новый метод для получения всех Word с пагинацией и сортировкой
     @Query("SELECT w FROM Word w")
     Page<Word> findAllWords(Pageable pageable);
+
+    @Query("SELECT w FROM TextWord w")
+    Page<TextWord> findAllTextWords(Pageable pageable);
 }
