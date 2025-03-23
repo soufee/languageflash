@@ -49,12 +49,12 @@ public class TextService {
         if (language == null) {
             throw new IllegalArgumentException("Язык " + text.getLanguage().getName() + " не найден");
         }
-        text.setLanguage(language); // Устанавливаем объект Language
+        text.setLanguage(language);
         if (text.getWords() != null) {
             text.getWords().forEach(word -> {
                 word.setText(text);
                 word.setLevel(text.getLevel());
-                word.setLanguage(language); // Устанавливаем тот же Language для слов
+                word.setLanguage(language);
                 word.setTagsAsSet(text.getTagsAsSet());
             });
         }

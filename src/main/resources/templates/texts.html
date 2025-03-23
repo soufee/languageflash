@@ -3,28 +3,407 @@
 <head>
     <meta charset="UTF-8">
     <title>Тексты - Language Flash</title>
-    <div th:replace="~{fragments/resources :: resources}"></div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <style>
-        .text-preview { max-height: 100px; overflow: hidden; }
-        .text-card { margin-bottom: 20px; }
+        .text-preview { 
+            max-height: 100px; 
+            overflow: hidden; 
+            display: block;
+            margin-top: 10px;
+            line-height: 1.5;
+            text-overflow: ellipsis;
+        }
+        
+        .text-preview-line {
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .text-preview-line:empty {
+            height: 1em;
+        }
+        .text-card { margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: transform 0.2s, box-shadow 0.2s; height: 100%; }
+        .text-card:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        .text-card .card-body { display: flex; flex-direction: column; height: 100%; }
+        .text-card .card-title { margin-bottom: 5px; }
+        .text-card .card-subtitle { margin-bottom: 10px; color: #6c757d; }
+        .text-card .text-preview { flex-grow: 1; min-height: 80px; }
+        .text-card .card-actions { margin-top: auto; display: flex; gap: 5px; }
         .sentence:hover { background-color: #f5f5f5; }
         .highlight { background-color: #e0e7ff; }
         .tag-list, .created-date { font-size: 0.8rem; color: #666; }
         .sidebar { position: sticky; top: 20px; }
         .pagination { margin-top: 20px; }
-        .edit-modal-body { display: flex; height: 70vh; }
-        .settings-column { width: 20%; padding-right: 15px; }
-        .text-columns { width: 80%; display: flex; flex-direction: column; }
-        .text-inputs { display: flex; flex-grow: 1; }
+        .edit-modal-body { 
+            display: flex; 
+            height: calc(85vh - 120px); /* Учитываем высоту заголовка и футера */
+            font-size: 0.9rem; 
+            overflow: hidden;
+        }
+        .settings-column { 
+            width: 25%; 
+            padding-right: 15px; 
+            overflow-y: auto;
+            height: 100%;
+        }
+        .text-columns { 
+            width: 75%; 
+            display: flex; 
+            flex-direction: column;
+            height: 100%; 
+            overflow-y: auto;
+        }
+        .text-inputs { 
+            display: flex;
+            flex-direction: row;
+            margin-bottom: 15px;
+            flex: 1 1 auto;
+            height: calc(100% - 200px); /* оставляем место для json и других элементов */
+        }
         .text-inputs .form-control { height: 100%; resize: none; }
-        .text-inputs .col { padding: 0 5px; }
-        .json-input { margin-top: 15px; }
-        .json-input .form-control { height: 150px; resize: vertical; }
+        .text-inputs .col { padding: 0 5px; height: 100%; }
+        .json-input { 
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+        .json-input .form-control { height: 120px; resize: vertical; }
         .title-en { font-size: 1.5rem; }
-        .title-ru { font-size: 1.25rem; color: #888; }
+        .context-menu { position: absolute; background: white; border: 1px solid #ccc; padding: 5px; z-index: 9999; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .context-menu-item { cursor: pointer; padding: 2px 10px; }
+        .context-menu-item:hover { background: #f0f0f0; }
+        .pending-match { background-color: lightblue; padding: 0 2px; }
+        .match-highlight { background-color: #e0e7ff; }
+        .text-content-wrapper { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; }
+        .text-content-wrapper textarea { flex-grow: 1; }
+        .highlighted-text { 
+            pointer-events: none; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            right: 0; 
+            bottom: 0; 
+            background: transparent; 
+            white-space: pre-wrap; 
+            overflow: auto; 
+            z-index: 1;
+        }
+        p[data-match-id] { display: inline; padding: 0 2px; border-radius: 3px; }
+        p[data-match-id]:hover { background-color: #e0e7ff; cursor: pointer; }
+        [data-match-id] { display: inline; padding: 0 2px; border-radius: 3px; }
+        [data-match-id]:hover { background-color: #e0e7ff; cursor: pointer; }
+        .matched-text { border-bottom: 1px dashed #6366f1; }
+        
+        /* Стили для отображения соответствий предложений */
+        .match-1 { background-color: rgba(255, 204, 204, 0.3); }
+        .match-2 { background-color: rgba(204, 255, 204, 0.3); }
+        .match-3 { background-color: rgba(204, 204, 255, 0.3); }
+        .match-4 { background-color: rgba(255, 255, 204, 0.3); }
+        .match-5 { background-color: rgba(255, 204, 255, 0.3); }
+        .match-6 { background-color: rgba(204, 255, 255, 0.3); }
+        .match-7 { background-color: rgba(224, 224, 224, 0.3); }
+        .match-8 { background-color: rgba(255, 224, 204, 0.3); }
+        .match-9 { background-color: rgba(204, 224, 255, 0.3); }
+        .match-10 { background-color: rgba(224, 255, 204, 0.3); }
+        
+        /* Рабочее поле для сопоставления предложений */
+        .matching-workspace {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 6px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .matching-workspace-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .matching-workspace-title {
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .matching-workspace-buttons button {
+            font-size: 0.7rem;
+            padding: 1px 5px;
+        }
+        
+        .matching-workspace-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .matching-sentence {
+            width: 45%;
+            min-height: 25px;
+            padding: 3px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            overflow-wrap: break-word;
+            font-size: 0.75rem;
+        }
+        
+        .matching-arrow {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        
+        .matched-pairs-list {
+            margin-top: 5px;
+            padding: 5px;
+            border-top: 1px solid #ddd;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        
+        .matched-pair {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px;
+            border-bottom: 1px solid #eee;
+            font-size: 0.75rem;
+        }
+        
+        .matched-pair-text {
+            font-size: 0.75rem;
+        }
+        
+        .btn-remove-match {
+            font-size: 0.7rem;
+        }
+        
+        /* Стили для модального окна просмотра текста */
+        .text-view-header {
+            margin-bottom: 20px;
+        }
+        
+        .text-view-info {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .text-view-container {
+            margin-top: 20px;
+            height: calc(75vh - 150px); /* Учитываем высоту заголовка и футера */
+        }
+        
+        .view-text-content {
+            white-space: pre-line !important;
+            line-height: 1.6;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            height: 100%;
+            overflow-y: auto;
+        }
+        
+        .view-text-line {
+            margin-bottom: 8px;
+            display: block;
+        }
+        
+        .view-text-line:empty {
+            height: 1em;
+        }
+        .modal-footer {
+            padding: 1rem;
+            margin-top: 1.5rem;
+            position: relative;
+            clear: both;
+        }
+        
+        /* Увеличение высоты окошка с тегами */
+        .settings-column select[multiple] { 
+            height: 120px !important; 
+        }
+        
+        /* Уменьшение размеров элементов в форме */
+        .form-control, .form-select, .btn { 
+            font-size: 0.9rem;
+            padding: 0.375rem 0.65rem;
+        }
+        
+        .form-label {
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        /* Увеличение отступа снизу для полей ввода */
+        .mb-3 {
+            margin-bottom: 0.75rem !important;
+        }
+        
+        /* Стили для resizable модальных окон */
+        .modal-content {
+            resize: both;
+            overflow: auto;
+            min-width: 500px;
+            min-height: 400px;
+            height: 85vh;
+            width: 95vw;
+        }
+        
+        .modal-dialog {
+            max-width: none;
+            margin: 1.75rem auto;
+            width: 95%;
+            max-height: 90vh;
+        }
+        
+        .modal-dialog.modal-xl {
+            width: 95%;
+            max-width: 95vw;
+        }
+        
+        .modal-dialog.modal-lg {
+            width: 90%;
+            max-width: 90vw;
+        }
+        
+        /* Размеры текстовых полей в модальных окнах */
+        .text-inputs textarea.form-control {
+            height: 50vh;
+            min-height: 300px;
+        }
+        
+        .view-text-content {
+            height: 60vh;
+            min-height: 300px;
+            max-height: none;
+        }
+        
+        /* Убедимся, что футер модального окна всегда внизу */
+        .modal-footer {
+            position: sticky;
+            bottom: 0;
+            background-color: white;
+            z-index: 1;
+        }
+        
+        /* Стили для работы с переносами строк */
+        .view-text-content, #editTextContent, #editTextTranslation, .text-preview {
+            white-space: pre-line !important;
+        }
+        
+        /* Восстановление двухколоночного отображения в режиме редактирования */
+        .text-inputs {
+            display: flex;
+            flex-direction: row;
+            margin-bottom: 15px;
+            flex: 1 1 auto;
+        }
+        
+        .text-inputs .col {
+            flex: 1; 
+            padding: 0 5px;
+            height: 100%;
+        }
+
+        /* Модальное окно предпросмотра поверх других */
+        #viewTextModal {
+            z-index: 1060 !important;
+        }
+
+        .modal-backdrop.show {
+            z-index: 1050 !important;
+        }
+
+        /* Стили для словаря */
+        .vocabulary-block {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        
+        .vocabulary-list {
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+        }
+        
+        .vocabulary-item {
+            border-bottom: 1px solid #f0f0f0;
+            padding: 5px 0;
+        }
+        
+        .vocabulary-item .word {
+            font-weight: bold;
+        }
+        
+        .vocabulary-item .translation {
+            color: #555;
+        }
+        
+        .vocabulary-item-edit {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .vocabulary-item-edit .btn-remove {
+            color: #dc3545;
+            background: none;
+            border: none;
+            font-size: 0.9rem;
+            padding: 0 5px;
+            cursor: pointer;
+        }
+        
+        .vocabulary-item-edit .word-translation {
+            flex-grow: 1;
+        }
+        
+        .vocabulary-item-edit .word-translation {
+            flex-grow: 1;
+        }
+        
+        /* Стили для выделения слов из словаря в тексте */
+        .vocabulary-word {
+            font-style: italic;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-decoration-color: #6c757d;
+            cursor: help;
+        }
+        
+        .vocabulary-word.highlighted {
+            background-color: rgba(255, 255, 0, 0.3);
+        }
+        
+        .vocabulary-item.highlighted {
+            background-color: rgba(255, 255, 0, 0.3);
+            border-radius: 3px;
+        }
+        
+        /* Стиль для подсказки */
+        .word-tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            z-index: 1070;
+            max-width: 250px;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
+<div th:replace="~{fragments/resources :: resources}"></div>
 <div th:replace="~{fragments/header :: header}"></div>
 
 <section class="hero-section">
@@ -50,16 +429,20 @@
                 <div th:unless="${texts != null and !texts.isEmpty()}" class="alert alert-info">
                     Нет текстов для выбранного языка и темы.
                 </div>
-                <div th:each="text : ${texts}" class="card text-card">
-                    <div class="card-body">
-                        <h5 class="card-title title-en" th:text="${text.title}"></h5>
-                        <p class="title-ru" th:text="${text.translation.substring(0, T(java.lang.Math).min(text.translation.length(), 50)) + (text.translation.length() > 50 ? '...' : '')}"></p>                        <p class="card-text text-preview" th:text="${#strings.abbreviate(text.content, 500)}"></p>
-                        <p class="tag-list" th:text="'Теги: ' + (${__${'russianTags_' + text.id}__} != null ? ${__${'russianTags_' + text.id}__} : '') + ', Уровень: ' + (${text.level != null ? text.level : ''})"></p>
-                        <p class="created-date" th:text="'Добавлено: ' + ${#temporals.format(text.createdDate, 'dd.MM.yyyy HH:mm')}"></p>
-                        <a href="#" class="card-link" data-bs-toggle="modal" data-bs-target="#viewTextModal" th:onclick="'loadText(' + ${text.id} + ')'">Читать далее >>></a>
-                        <div th:if="${isAdmin}" class="mt-2">
-                            <button class="btn btn-sm btn-warning me-2" data-bs-toggle="modal" data-bs-target="#editTextModal" th:onclick="'editText(' + ${text.id} + ')'">Редактировать</button>
-                            <button class="btn btn-sm btn-danger" th:onclick="'deleteText(' + ${text.id} + ')'">Удалить</button>
+                <div class="row" id="text-cards-container">
+                    <div th:each="text : ${texts}" class="col-md-4">
+                        <div class="card text-card">
+                            <div class="card-body">
+                                <h5 class="card-title title-en" th:text="${text.title}"></h5>
+                                <div class="card-text text-preview" th:utext="${text.content.replace('<p data-match-id=&quot;', '<span data-match-id=&quot;').replace('</p>', '</span>')}"></div>
+                                <p class="tag-list" th:text="'Теги: ' + (${__${'russianTags_' + text.id}__} != null ? ${__${'russianTags_' + text.id}__} : '') + ', Уровень: ' + (${text.level != null ? text.level : ''})"></p>
+                                <p class="created-date" th:text="'Добавлено: ' + ${#temporals.format(text.createdDate, 'dd.MM.yyyy HH:mm')}"></p>
+                                <div class="card-actions">
+                                    <button class="btn btn-sm btn-primary" th:onclick="'loadText(\'' + ${text.id} + '\')'">Открыть</button>
+                                    <button class="btn btn-sm btn-danger" th:if="${isAdmin}" th:onclick="'deleteText(\'' + ${text.id} + '\')'">Удалить</button>
+                                    <button class="btn btn-sm btn-warning" th:if="${isAdmin}" data-bs-toggle="modal" data-bs-target="#editTextModal" th:onclick="'editText(\'' + ${text.id} + '\')'">Изменить</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -101,23 +484,71 @@
 
 <!-- Модальное окно для просмотра текста -->
 <div class="modal fade" id="viewTextModal" tabindex="-1" aria-labelledby="viewTextModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-lg" id="viewTextDialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="viewTextModalLabel">Текст</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title" id="viewTextModalLabel">Просмотр текста</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
             <div class="modal-body">
-                <p class="created-date" th:text="'Добавлено: ' + ${#temporals.format(page.content[0]?.createdDate, 'dd.MM.yyyy HH:mm')}"></p>
                 <div class="row">
-                    <div class="col-md-6" id="textContent"></div>
-                    <div class="col-md-6" id="textTranslation"></div>
+                    <div class="col-md-3">
+                        <div class="sidebar-info mb-4">
+                            <h6>Информация</h6>
+                            <ul class="list-unstyled">
+                                <li><strong id="languageAndLevel"></strong></li>
+                                <li><strong>Дата:</strong> <span id="viewTextDate"></span></li>
+                                <!-- Скрытые элементы для совместимости с JS -->
+                                <span id="viewTextLanguage" style="display: none;"></span>
+                                <span id="viewTextLanguageTo" style="display: none;"></span>
+                                <span id="viewTextLevel" style="display: none;"></span>
+                                <span id="viewTextTags" style="display: none;"></span>
+                            </ul>
+                        </div>
+                        
+                        <div id="viewTextTagsContainer" class="mb-3"></div>
+                        
+                        <div class="vocabulary-block">
+                            <h6>Словарь</h6>
+                            <div id="viewTextVocabulary" class="vocabulary-list">
+                                <!-- Словарь будет заполнен динамически -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-9">
+                        <h3 id="viewTextTitle" class="mb-3"></h3>
+                        <div class="text-view-container">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header bg-primary text-white">
+                                            Оригинал
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="viewTextContent" class="view-text-content"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header bg-success text-white">
+                                            Перевод
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="viewTextTranslation" class="view-text-content"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div id="textWords" class="mt-3"></div>
             </div>
             <div class="modal-footer">
-                <button th:if="${isAuthenticated}" type="button" class="btn btn-primary" id="takeToWorkBtn">Взять в работу</button>
+                <button type="button" class="btn btn-primary" id="takeToWorkBtn">Взять в работу</button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                <input type="hidden" id="viewTextId">
+                <div class="resize-handle" style="position: absolute; right: 3px; bottom: 3px; cursor: se-resize;">⋮⋮</div>
             </div>
         </div>
     </div>
@@ -125,7 +556,7 @@
 
 <!-- Модальное окно для редактирования текста (для админа) -->
 <div class="modal fade" id="editTextModal" tabindex="-1" aria-labelledby="editTextModalLabel" aria-hidden="true" sec:authorize="hasRole('ADMIN')">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-xl" id="editTextDialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="editTextModalLabel">Редактировать текст</h5>
@@ -133,46 +564,74 @@
             </div>
             <div class="modal-body edit-modal-body">
                 <div class="settings-column">
-                    <form id="editTextForm">
-                        <input type="hidden" id="textId">
-                        <div class="mb-3">
-                            <label for="textTitle" class="form-label">Название</label>
-                            <input type="text" class="form-control" id="textTitle" required>
+                    <input type="hidden" id="textId">
+                    <div class="mb-3">
+                        <label for="textTitle" class="form-label">Название</label>
+                        <input type="text" class="form-control" id="textTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="textLanguage" class="form-label">Язык</label>
+                        <select class="form-select" id="textLanguage" required>
+                            <option value="">Выберите язык</option>
+                            <option th:each="lang : ${languages}" th:value="${lang.name}" th:text="${lang.name}"></option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="textLevel" class="form-label">Уровень</label>
+                        <select class="form-select" id="textLevel" required>
+                            <option value="">Выберите уровень</option>
+                            <option th:each="level : ${T(ci.ashamaz.languageflash.model.Level).values()}" th:value="${level.name()}" th:text="${level.name()}"></option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="textTags" class="form-label">Теги</label>
+                        <select class="form-select" id="textTags" multiple size="5">
+                            <option th:each="tag : ${tags}" th:value="${tag.name}" th:text="${tag.russianName}"></option>
+                        </select>
+                    </div>
+                    <div class="vocabulary-block">
+                        <h6>Словарь</h6>
+                        <div id="editTextVocabulary" class="vocabulary-list">
+                            <!-- Словарь будет заполнен динамически -->
                         </div>
-                        <div class="mb-3">
-                            <label for="textLanguage" class="form-label">Язык</label>
-                            <select id="textLanguage" class="form-select" required>
-                                <option th:each="lang : ${languages}" th:value="${lang.name}" th:text="${lang.name}"></option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="textLevel" class="form-label">Уровень</label>
-                            <select id="textLevel" class="form-select" required>
-                                <option th:each="level : ${T(ci.ashamaz.languageflash.model.Level).values()}" th:value="${level.name()}" th:text="${level.name()}"></option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="textTags" class="form-label">Теги</label>
-                            <select id="textTags" class="form-select" multiple>
-                                <option th:each="tag : ${tags}" th:value="${tag.name}" th:text="${tag.russianName}"></option>
-                            </select>
-                        </div>
-                    </form>
+                        <input type="hidden" id="textWordsJson">
+                    </div>
                 </div>
                 <div class="text-columns">
+                    <!-- Рабочее поле для сопоставления предложений -->
+                    <div class="matching-workspace mb-3">
+                        <div class="matching-workspace-header">
+                            <h6 class="matching-workspace-title">Сопоставление предложений</h6>
+                            <div class="matching-workspace-buttons">
+                                <button id="btnClearMatching" class="btn btn-sm btn-secondary" disabled>Очистить</button>
+                                <button id="btnCompleteMatching" class="btn btn-sm btn-primary" disabled>Сопоставить</button>
+                            </div>
+                        </div>
+                        <div class="matching-workspace-content">
+                            <div class="matching-sentence" id="sourceMatch">
+                                <small class="text-muted">Оригинал...</small>
+                            </div>
+                            <div class="matching-arrow">→</div>
+                            <div class="matching-sentence" id="targetMatch">
+                                <small class="text-muted">Перевод...</small>
+                            </div>
+                        </div>
+                        <div id="matchedPairsList" class="matched-pairs-list" style="display: none;"></div>
+                    </div>
+                    
                     <div class="text-inputs">
                         <div class="col">
-                            <label class="form-label">Text</label>
-                            <textarea class="form-control" id="editTextContent" name="content" required></textarea>
+                            <label for="editTextContent" class="form-label">Текст (оригинал)</label>
+                            <div class="text-content-wrapper">
+                                <textarea class="form-control" id="editTextContent" rows="10" required></textarea>
+                            </div>
                         </div>
                         <div class="col">
-                            <label class="form-label">Перевод</label>
-                            <textarea class="form-control" id="editTextTranslation" name="translation" required></textarea>
+                            <label for="editTextTranslation" class="form-label">Перевод</label>
+                            <div class="text-content-wrapper">
+                                <textarea class="form-control" id="editTextTranslation" rows="10" required></textarea>
+                            </div>
                         </div>
-                    </div>
-                    <div class="json-input">
-                        <label for="textWordsJson" class="form-label">Слова (JSON)</label>
-                        <textarea class="form-control" id="textWordsJson" placeholder='[{"word": "example", "translation": "пример", "exampleSentence": "This is an example.", "exampleTranslation": "Это пример."}]'></textarea>
                     </div>
                 </div>
             </div>
@@ -180,6 +639,66 @@
                 <button type="button" class="btn btn-info" onclick="previewText()">Предпросмотр</button>
                 <button type="button" class="btn btn-primary" onclick="saveText()">Сохранить</button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <div class="resize-handle" style="position: absolute; right: 3px; bottom: 3px; cursor: se-resize;">⋮⋮</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Контейнер для предпросмотра -->
+<div id="previewContainer" class="modal fade" tabindex="-1" aria-labelledby="previewTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewTitle">Предпросмотр текста</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                <div class="resize-handle" style="position: absolute; right: 3px; bottom: 3px; cursor: se-resize;">⋮⋮</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Контекстное меню -->
+<div id="contextMenu" class="context-menu" style="display: none;">
+    <div class="context-menu-item" id="matchSentenceItem">Сопоставить предложение</div>
+    <div class="context-menu-item" id="addToVocabularyItem">В словарь</div>
+</div>
+
+<!-- Модальное окно для добавления слова в словарь -->
+<div class="modal fade" id="addWordModal" tabindex="-1" aria-labelledby="addWordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addWordModalLabel">Добавление слова в словарь</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="addWordText" class="form-label">Слово/Фраза</label>
+                    <input type="text" class="form-control" id="addWordText" required>
+                </div>
+                <div class="mb-3">
+                    <label for="addWordTranslation" class="form-label">Перевод</label>
+                    <input type="text" class="form-control" id="addWordTranslation" required>
+                </div>
+                <div class="mb-3">
+                    <label for="addWordExample" class="form-label">Пример использования</label>
+                    <textarea class="form-control" id="addWordExample" rows="2"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="addWordExampleTranslation" class="form-label">Перевод примера</label>
+                    <textarea class="form-control" id="addWordExampleTranslation" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="addWordToVocabularyBtn">Добавить</button>
             </div>
         </div>
     </div>
@@ -187,160 +706,1639 @@
 
 <div th:replace="~{fragments/footer :: footer}"></div>
 
-<script>
-    function loadText(textId) {
-        fetch('/texts/' + textId)
-            .then(response => response.json())
-            .then(data => {
-                const contentWithBreaks = data.content.replace(/\n/g, '<br>');
-                const translationWithBreaks = data.translation.replace(/\n/g, '<br>');
-                document.getElementById('textContent').innerHTML = contentWithBreaks.split('. ').map(s => '<p class="sentence">' + s + '</p>').join('');
-                document.getElementById('textTranslation').innerHTML = translationWithBreaks.split('. ').map(s => '<p class="sentence">' + s + '</p>').join('');
-                document.getElementById('textWords').innerHTML = '<h5>Словарь:</h5>' +
-                    data.words.map(w => `<p><strong>${w.word}</strong> - ${w.translation} (Пример: ${w.exampleSentence})</p>`).join('');
-                const russianTags = data.tags ? JSON.parse(data.tags).map(tag => {
-                    const tagMap = {
-                        "SONG_LYRICS": "Тексты песен",
-                        "BASIC_VOCABULARY": "Базовая лексика",
-                        "SPORTS": "Спорт"
-                    };
-                    return tagMap[tag] || tag;
-                }).join(', ') : '';
-                document.getElementById('textWords').innerHTML += `<p class="tag-list">Теги: ${russianTags}</p>`;
-                document.querySelector('#viewTextModal .created-date').textContent = 'Добавлено: ' + new Date(data.createdDate).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+<script th:inline="javascript">
+    // Глобальные переменные для хранения сопоставленных предложений
+    let matchPairs = []; // Массив для хранения сопоставленных пар предложений
+    let matchCounter = 0; // Счетчик для генерации уникальных ID
+    let currentMatch = { // Текущее сопоставление в процессе
+        source: null,
+        target: null
+    };
 
-                const sentences = document.querySelectorAll('#textContent .sentence');
-                const translations = document.querySelectorAll('#textTranslation .sentence');
-                sentences.forEach((s, i) => {
-                    s.addEventListener('mouseover', () => {
-                        translations[i].classList.add('highlight');
+    document.addEventListener('DOMContentLoaded', function() {
+        // Отслеживаем правый клик по текстовым полям
+        ['editTextContent', 'editTextTranslation'].forEach(id => {
+            const textarea = document.getElementById(id);
+            if (textarea) {
+                textarea.addEventListener('contextmenu', handleContextMenu);
+                
+                // Добавляем обработчик для обновления подсветки слов при редактировании
+                if (id === 'editTextContent') {
+                    textarea.addEventListener('input', function() {
+                        // Обновляем подсветку с небольшой задержкой для производительности
+                        clearTimeout(textarea.updateTimeout);
+                        textarea.updateTimeout = setTimeout(function() {
+                            highlightVocabularyWords();
+                        }, 500);
                     });
-                    s.addEventListener('mouseout', () => {
-                        translations[i].classList.remove('highlight');
-                    });
-                });
-            })
-            .catch(error => console.error('Ошибка загрузки текста:', error));
+                }
+            }
+        });
+        
+        // Настраиваем обработчики для пунктов контекстного меню
+        document.getElementById('matchSentenceItem').addEventListener('click', addToWorkspace);
+        document.getElementById('addToVocabularyItem').addEventListener('click', showAddWordModal);
+        
+        // Закрываем контекстное меню при клике вне его
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('contextMenu');
+            if (!menu.contains(e.target)) {
+                menu.style.display = 'none';
+            }
+        });
+        
+        // Настраиваем обработчики для кнопок рабочего поля
+        document.getElementById('btnClearMatching').addEventListener('click', clearWorkspace);
+        document.getElementById('btnCompleteMatching').addEventListener('click', completePairMatching);
+        
+        // Настраиваем обработчик для кнопки "Взять в работу"
+        document.getElementById('takeToWorkBtn').addEventListener('click', takeTextToWork);
+        
+        // Делаем модальные окна изменяемыми по размеру
+        setupResizableModal('viewTextDialog');
+        setupResizableModal('editTextDialog');
+        setupResizableModal('previewContainer'); // Добавляем поддержку изменения размера для окна предпросмотра
+        
+        // Инициализация модального окна предпросмотра
+        if (document.getElementById('previewContainer')) {
+            new bootstrap.Modal(document.getElementById('previewContainer'));
+        }
+        
+        // Вызываем функцию при загрузке страницы
+        formatPreviewText();
+    });
+
+    // Обработка правого клика и показ контекстного меню
+    function handleContextMenu(e) {
+        e.preventDefault();
+        
+        const textarea = this;
+        const selectionStart = textarea.selectionStart;
+        const selectionEnd = textarea.selectionEnd;
+        
+        // Проверяем, есть ли выделенный текст
+        if (selectionStart === selectionEnd) {
+            return; // Если нет выделения, не показываем меню
+        }
+        
+        const menu = document.getElementById('contextMenu');
+        menu.style.top = (e.clientY + window.scrollY) + 'px';
+        menu.style.left = (e.clientX + window.scrollX) + 'px';
+        menu.style.display = 'block';
+        
+        // Сохраняем информацию о выделенном тексте
+        menu.dataset.textareaId = textarea.id;
+        menu.dataset.selectionStart = selectionStart;
+        menu.dataset.selectionEnd = selectionEnd;
+        menu.dataset.selectedText = textarea.value.substring(selectionStart, selectionEnd);
+        
+        // Гарантируем, что меню будет отображаться поверх всех элементов
+        document.body.appendChild(menu);
+    }
+
+    // Находит полное предложение, содержащее выделенный фрагмент
+    function findFullSentence(text, startPos, endPos) {
+        // Находим начало предложения (точка или начало строки)
+        let sentenceStart = startPos;
+        while (sentenceStart > 0) {
+            if (text[sentenceStart - 1] === '.' || text[sentenceStart - 1] === '\n' || 
+                text[sentenceStart - 1] === '!' || text[sentenceStart - 1] === '?') {
+                break;
+            }
+            sentenceStart--;
+        }
+        
+        // Находим конец предложения (точка или конец строки)
+        let sentenceEnd = endPos;
+        while (sentenceEnd < text.length) {
+            if (text[sentenceEnd] === '.' || text[sentenceEnd] === '\n' || 
+                text[sentenceEnd] === '!' || text[sentenceEnd] === '?') {
+                sentenceEnd++;
+                break;
+            }
+            sentenceEnd++;
+        }
+        
+        return { 
+            text: text.substring(sentenceStart, sentenceEnd).trim(),
+            start: sentenceStart,
+            end: sentenceEnd
+        };
+    }
+
+    // Добавление выделенного текста в рабочее поле
+    function addToWorkspace() {
+        const menu = document.getElementById('contextMenu');
+        const textareaId = menu.dataset.textareaId;
+        const selectionStart = parseInt(menu.dataset.selectionStart);
+        const selectionEnd = parseInt(menu.dataset.selectionEnd);
+        const textarea = document.getElementById(textareaId);
+        
+        if (selectionStart === selectionEnd) {
+            alert('Необходимо выделить текст для сопоставления');
+            menu.style.display = 'none';
+            return;
+        }
+        
+        // Находим полное предложение на основе выделения
+        const text = textarea.value;
+        const fullSentence = findFullSentence(text, selectionStart, selectionEnd);
+        
+        if (!fullSentence || !fullSentence.text || fullSentence.text.trim() === '') {
+            alert('Не удалось определить предложение. Пожалуйста, выделите текст снова.');
+            menu.style.display = 'none';
+            return;
+        }
+        
+        // Определяем куда помещать - в source или target
+        if (textareaId === 'editTextContent') { // Английское предложение - источник
+            currentMatch.source = {
+                text: fullSentence.text,
+                start: fullSentence.start,
+                end: fullSentence.end
+            };
+            document.getElementById('sourceMatch').innerHTML = fullSentence.text;
+        } else { // Русское предложение - перевод
+            currentMatch.target = {
+                text: fullSentence.text,
+                start: fullSentence.start,
+                end: fullSentence.end
+            };
+            document.getElementById('targetMatch').innerHTML = fullSentence.text;
+        }
+        
+        // Активируем кнопки
+        updateWorkspaceControls();
+        
+        menu.style.display = 'none';
+    }
+
+    // Обновление состояния кнопок рабочего поля
+    function updateWorkspaceControls() {
+        const clearBtn = document.getElementById('btnClearMatching');
+        const completeBtn = document.getElementById('btnCompleteMatching');
+        
+        // Кнопка очистки активна, если хотя бы одно поле заполнено
+        clearBtn.disabled = !currentMatch.source && !currentMatch.target;
+        
+        // Кнопка сопоставления активна, если оба поля заполнены
+        completeBtn.disabled = !currentMatch.source || !currentMatch.target;
+    }
+
+    // Очистка рабочего поля
+    function clearWorkspace() {
+        currentMatch = {
+            source: null,
+            target: null
+        };
+        
+        document.getElementById('sourceMatch').innerHTML = '<small class="text-muted">Оригинал...</small>';
+        document.getElementById('targetMatch').innerHTML = '<small class="text-muted">Перевод...</small>';
+        
+        updateWorkspaceControls();
+    }
+
+    // Завершение сопоставления пары предложений
+    function completePairMatching() {
+        if (!currentMatch.source || !currentMatch.target) {
+            alert('Необходимо выбрать предложения на обоих языках');
+            return;
+        }
+        
+        // Создаем новую пару
+        const pairId = matchCounter++;
+        
+        const pair = {
+            id: pairId,
+            source: {
+                text: currentMatch.source.text,
+                start: currentMatch.source.start,
+                end: currentMatch.source.end
+            },
+            target: {
+                text: currentMatch.target.text,
+                start: currentMatch.target.start,
+                end: currentMatch.target.end
+            }
+        };
+        
+        // Добавляем в массив
+        matchPairs.push(pair);
+        
+        // Обновляем список сопоставленных пар
+        updateMatchedPairsList();
+        
+        // Очищаем рабочее поле
+        clearWorkspace();
+    }
+
+    // Обновление списка сопоставленных пар
+    function updateMatchedPairsList() {
+        const listContainer = document.getElementById('matchedPairsList');
+        
+        if (matchPairs.length === 0) {
+            listContainer.style.display = 'none';
+            return;
+        }
+        
+        listContainer.style.display = 'block';
+        listContainer.innerHTML = '';
+        
+        // Добавляем заголовок
+        const header = document.createElement('div');
+        header.className = 'mb-2';
+        header.innerHTML = `<strong>Сопоставленные предложения (${matchPairs.length}):</strong>`;
+        listContainer.appendChild(header);
+        
+        // Добавляем пары
+        matchPairs.forEach((pair, index) => {
+            const pairElement = document.createElement('div');
+            pairElement.className = 'matched-pair';
+            
+            // Сокращаем текст, если он слишком длинный
+            const sourceShort = pair.source.text.length > 40 ? 
+                pair.source.text.substring(0, 37) + '...' : pair.source.text;
+            const targetShort = pair.target.text.length > 40 ? 
+                pair.target.text.substring(0, 37) + '...' : pair.target.text;
+            
+            pairElement.innerHTML = `
+                <div class="matched-pair-text" title="${pair.source.text}">
+                    ${index + 1}. ${sourceShort}
+                </div>
+                <div class="matched-pair-text" title="${pair.target.text}">
+                    ${targetShort}
+                </div>
+                <div class="matched-pair-actions">
+                    <button class="btn-remove-match" onclick="removeMatchPair(${pair.id})">✕</button>
+                </div>
+            `;
+            
+            listContainer.appendChild(pairElement);
+        });
+    }
+
+    // Удаление сопоставленной пары
+    function removeMatchPair(pairId) {
+        matchPairs = matchPairs.filter(pair => pair.id !== pairId);
+        updateMatchedPairsList();
+    }
+
+    // Сохранение текста
+    function saveText() {
+        // Получаем значения из формы
+        const title = document.getElementById('textTitle').value;
+        const languageName = document.getElementById('textLanguage').value;
+        const level = document.getElementById('textLevel').value;
+        const tags = Array.from(document.getElementById('textTags').selectedOptions).map(option => option.value);
+        
+        // Получаем тексты и подготавливаем их перед отправкой
+        let content = document.getElementById('editTextContent').value;
+        let translation = document.getElementById('editTextTranslation').value;
+        const wordsJson = document.getElementById('textWordsJson').value;
+        
+        // Проверяем обязательные поля
+        if (!title || !languageName || !level || !content || !translation) {
+            alert('Пожалуйста, заполните все обязательные поля (название, язык, уровень, текст и перевод).');
+            return;
+        }
+        
+        // Обрабатываем совпадающие предложения
+        if (matchPairs.length > 0) {
+            // Создаем копии текста, чтобы не изменять исходные значения в текстовых полях
+            let processedContent = content;
+            let processedTranslation = translation;
+            
+            // Обрабатываем каждую пару совпадающих предложений
+            matchPairs.forEach(pair => {
+                const { id, source, target } = pair;
+                
+                // Заменяем оригинальный текст на текст с тегами
+                const originalRegex = new RegExp(escapeRegExp(source.text), 'g');
+                processedContent = processedContent.replace(
+                    originalRegex, 
+                    `<p data-match-id="match-${id}">${source.text}</p>`
+                );
+                
+                // Заменяем перевод на текст с тегами
+                const translationRegex = new RegExp(escapeRegExp(target.text), 'g');
+                processedTranslation = processedTranslation.replace(
+                    translationRegex, 
+                    `<p data-match-id="match-${id}">${target.text}</p>`
+                );
+            });
+            
+            content = processedContent;
+            translation = processedTranslation;
+        }
+        
+        // Удаляем преобразование переносов строк - пользователь сам контролирует HTML
+        
+        // Обрабатываем словарь
+        let words = [];
+        if (wordsJson && wordsJson.trim()) {
+            try {
+                words = JSON.parse(wordsJson);
+            } catch (e) {
+                console.error('Ошибка в формате JSON словаря:', e);
+                words = [];
+            }
+        }
+        
+        // Создаем объект данных для отправки
+        const textData = {
+            id: document.getElementById('textId').value || null,
+            title: title,
+            language: languageName,
+            level: level,
+            tags: tags.join(','),
+            content: content,
+            translation: translation,
+            words: words
+        };
+        
+        // Определяем, какой URL использовать
+        const isNewText = !document.getElementById('textId').value;
+        const url = isNewText ? '/admin/texts/add' : '/admin/texts/edit';
+        
+        // Выполняем запрос к API
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(textData)
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            }
+            throw new Error('Ошибка при сохранении текста');
+        })
+        .then(data => {
+            console.log('Текст успешно сохранен:', data);
+            // Закрываем модальное окно и обновляем страницу
+            const editModal = bootstrap.Modal.getInstance(document.getElementById('editTextModal'));
+            editModal.hide();
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            alert('Произошла ошибка при сохранении текста. Пожалуйста, попробуйте еще раз.');
+        });
+    }
+
+    // Вспомогательная функция для экранирования спецсимволов в регулярных выражениях
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    // Функция для активации подсветки слов в режиме редактирования
+    function highlightVocabularyWordsInEditor() {
+        const contentTextarea = document.getElementById('editTextContent');
+        const content = contentTextarea.value;
+        
+        // Получаем текущий словарь
+        let vocabulary = [];
+        const wordsJsonEl = document.getElementById('textWordsJson');
+        
+        if (wordsJsonEl.value && wordsJsonEl.value.trim()) {
+            try {
+                vocabulary = JSON.parse(wordsJsonEl.value);
+            } catch (e) {
+                console.error('Ошибка при парсинге словаря для выделения:', e);
+                return;
+            }
+        }
+        
+        // Если словарь пуст, выходим
+        if (vocabulary.length === 0) return;
+        
+        // Используем общую функцию для подсветки слов - без преобразований переносов строк
+        const highlightedContent = highlightVocabularyWords(content, vocabulary);
+        
+        // Сохраняем измененный HTML
+        contentTextarea.dataset.highlightedContent = highlightedContent;
+    }
+    
+    // Функция предпросмотра текста
+    function previewText() {
+        const title = document.getElementById('editTextTitle')?.value || document.getElementById('textTitle')?.value || '';
+        const language = document.getElementById('editTextLanguage')?.value || document.getElementById('textLanguage')?.value || '';
+        const languageTo = document.getElementById('editTextLanguageTo')?.value || '';
+        const content = document.getElementById('editTextContent')?.value || '';
+        const translation = document.getElementById('editTextTranslation')?.value || '';
+        const tagsInput = document.getElementById('editTextTags')?.value || document.getElementById('textTags')?.value || '';
+        const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()) : [];
+        
+        // Обработка словаря для предпросмотра
+        let words = [];
+        const wordsJsonEl = document.getElementById('textWordsJson');
+        if (wordsJsonEl && wordsJsonEl.value && wordsJsonEl.value.trim()) {
+            try {
+                words = JSON.parse(wordsJsonEl.value);
+            } catch (e) {
+                console.error('Ошибка при парсинге словаря:', e);
+            }
+        }
+        
+        // Подготовка контента без изменения HTML-форматирования
+        let formattedContent = content;
+        let formattedTranslation = translation;
+        
+        // Применяем подсветку слов из словаря к контенту и переводу
+        if (words.length > 0) {
+            formattedContent = highlightVocabularyWords(formattedContent, words);
+            formattedTranslation = highlightVocabularyWords(formattedTranslation, words);
+        }
+        
+        // Отображаем предпросмотр
+        const previewContainer = document.getElementById('previewContainer');
+        const previewContent = document.getElementById('previewContent');
+        const previewTitle = document.getElementById('previewTitle');
+        
+        if (!previewContainer || !previewContent || !previewTitle) {
+            console.error('Элементы предпросмотра не найдены в DOM');
+            alert('Ошибка при открытии предпросмотра. Элементы не найдены.');
+            return;
+        }
+        
+        previewTitle.textContent = title || 'Предпросмотр текста';
+        
+        // Создаем контейнеры для текста на двух языках
+        let htmlContent = `
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            ${language || 'Язык оригинала'}
+                        </div>
+                        <div class="card-body">
+                            ${formattedContent}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            ${languageTo || 'Перевод'}
+                        </div>
+                        <div class="card-body">
+                            ${formattedTranslation}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Добавляем теги
+        if (tags.length > 0) {
+            htmlContent += '<div class="row mb-3"><div class="col-12"><div class="tags">';
+            tags.forEach(tag => {
+                htmlContent += `<span class="badge bg-secondary me-1">${tag}</span>`;
+            });
+            htmlContent += '</div></div></div>';
+        }
+        
+        // Добавляем словарь
+        if (words.length > 0) {
+            htmlContent += '<div class="row mb-3"><div class="col-12"><h5>Словарь</h5><div class="vocabulary-preview">';
+            words.forEach(word => {
+                htmlContent += `<div class="vocab-item">
+                    <span class="vocab-word">${word.word}</span>
+                    <span class="vocab-translation">${word.translation}</span>
+                </div>`;
+            });
+            htmlContent += '</div></div></div>';
+        }
+        
+        previewContent.innerHTML = htmlContent;
+        
+        // Показываем модальное окно предпросмотра
+        try {
+            const previewModal = new bootstrap.Modal(previewContainer);
+            previewModal.show();
+        } catch (e) {
+            console.error('Ошибка при открытии модального окна предпросмотра:', e);
+            // Запасной вариант отображения
+            previewContainer.style.display = 'block';
+        }
     }
 
     function editText(textId) {
         fetch('/texts/' + textId)
-            .then(response => response.json())
+            .then(response => {
+                // Проверяем тип контента - если это HTML, то это ошибка
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('text/html')) {
+                    throw new Error('Сервер вернул HTML вместо JSON. Возможно, проблема с аутентификацией или сессией.');
+                }
+                return response.json();
+            })
             .then(data => {
                 document.getElementById('textId').value = data.id;
                 document.getElementById('textTitle').value = data.title;
                 document.getElementById('textLanguage').value = data.language.name;
                 document.getElementById('textLevel').value = data.level;
-                document.getElementById('editTextContent').value = data.content;
-                document.getElementById('editTextTranslation').value = data.translation;
+                
+                // Напрямую используем полученный HTML без преобразований
+                let content = data.content;
+                let translation = data.translation;
+                
+                // Убираем преобразования <br> <-> \n
+                document.getElementById('editTextContent').value = content;
+                document.getElementById('editTextTranslation').value = translation;
+                
+                // Затем восстанавливаем сопоставления
+                matchPairs = [];
+                matchCounter = 0;
+                
+                // Обновляем список сопоставленных пар
+                updateMatchedPairsList();
+                
+                // Обрабатываем теги
                 const tagsSelect = document.getElementById('textTags');
-                const tags = data.tags ? JSON.parse(data.tags) : [];
-                Array.from(tagsSelect.options).forEach(option => {
-                    option.selected = tags.includes(option.value);
-                });
-                const wordsJson = JSON.stringify(data.words.map(word => ({
-                    word: word.word,
-                    translation: word.translation,
-                    exampleSentence: word.exampleSentence,
-                    exampleTranslation: word.exampleTranslation
-                })), null, 2);
-                document.getElementById('textWordsJson').value = wordsJson;
+                // Сначала снимаем выделение со всех опций
+                Array.from(tagsSelect.options).forEach(option => option.selected = false);
+                
+                // Проверяем формат тегов и обрабатываем их соответственно
+                if (data.tags) {
+                    let tagsList = [];
+                    
+                    // Проверяем, является ли tags строкой JSON или обычной строкой с запятыми
+                    if (data.tags.startsWith('[') && data.tags.endsWith(']')) {
+                        try {
+                            // Пробуем распарсить как JSON
+                            tagsList = JSON.parse(data.tags);
+                        } catch (e) {
+                            // Если ошибка парсинга, разделяем по запятой
+                            console.warn('Не удалось распарсить теги как JSON:', e);
+                            tagsList = data.tags.split(',').map(t => t.trim());
+                        }
+                    } else {
+                        // Обычная строка с запятыми
+                        tagsList = data.tags.split(',').map(t => t.trim());
+                    }
+                    
+                    // Выбираем соответствующие опции
+                    Array.from(tagsSelect.options).forEach(option => {
+                        option.selected = tagsList.includes(option.value);
+                    });
+                }
+                
+                // Отображаем словарь
+                displayEditVocabulary(data.words);
             })
             .catch(error => console.error('Ошибка загрузки текста для редактирования:', error));
     }
 
+    // Функция загрузки текста для просмотра
+    function loadText(id) {
+        fetch(`/texts/${id}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Ошибка при загрузке текста');
+                }
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('text/html')) {
+                    throw new Error('Сервер вернул HTML вместо JSON. Возможно, проблема с аутентификацией или сессией.');
+                }
+                return response.json();
+            })
+            .then(text => {
+                // Заполняем заголовок и метаданные
+                document.getElementById('viewTextTitle').textContent = text.title || 'Без названия';
+                
+                // Объединяем язык и уровень
+                const language = text.language?.name || '';
+                const level = text.level || '';
+                document.getElementById('languageAndLevel').textContent = `${language} ${level}`;
+
+                // Скрываем старые поля, которые больше не используются
+                document.getElementById('viewTextLanguage').textContent = '';
+                document.getElementById('viewTextLanguageTo').textContent = '';
+                document.getElementById('viewTextLevel').textContent = '';
+
+                // Обработка тегов - показываем как цветные плитки
+                const tagsContainer = document.getElementById('viewTextTagsContainer');
+                tagsContainer.innerHTML = '';
+                
+                // Получаем теги из текста
+                if (text.tags) {
+                    // Получаем теги, представленные в тексте
+                    let tags = [];
+                    if (typeof text.tags === 'string') {
+                        // Если теги - строка, разбиваем на массив
+                        if (text.tags.startsWith('[') && text.tags.endsWith(']')) {
+                            try {
+                                tags = JSON.parse(text.tags);
+                            } catch (e) {
+                                tags = text.tags.split(',').map(t => t.trim());
+                            }
+                        } else {
+                            tags = text.tags.split(',').map(t => t.trim());
+                        }
+                    } else if (Array.isArray(text.tags)) {
+                        tags = text.tags;
+                    }
+                    
+                    // Создаем элементы тегов
+                    if (tags.length > 0) {
+                        const tagsDiv = document.createElement('div');
+                        tagsDiv.className = 'tags';
+                        
+                        // Используем информацию о тегах из сервера, если она доступна
+                        if (text.tagsInfo) {
+                            // Если сервер вернул информацию о тегах, используем ее
+                            tags.forEach(tagName => {
+                                const tagInfo = text.tagsInfo.find(t => t.name === tagName);
+                                if (tagInfo) {
+                                    const tagSpan = document.createElement('span');
+                                    tagSpan.className = 'badge me-1';
+                                    tagSpan.style.backgroundColor = tagInfo.color || '#6c757d';
+                                    tagSpan.textContent = tagInfo.russianName || tagName;
+                                    tagsDiv.appendChild(tagSpan);
+                                }
+                            });
+                        } else {
+                            // Если информация о тегах недоступна, просто отображаем теги с цветами по умолчанию
+                            // Используем предопределенные цвета для некоторых известных тегов
+                            const tagColors = {
+                                'IRREGULAR_VERBS': { name: 'Неправильные глаголы', color: '#FF6F61' },
+                                'REGULAR_VERBS': { name: 'Правильные глаголы', color: '#4CAF50' },
+                                'FAMILY_HOME': { name: 'Семья, дом и быт', color: '#FFB300' },
+                                'BUSINESS': { name: 'Деловое общение', color: '#3F51B5' },
+                                'TECHNICAL_SCIENCES': { name: 'Технические науки', color: '#9C27B0' },
+                                'SONG_LYRICS': { name: 'Тексты песен', color: '#E91E63' },
+                                'LITERATURE': { name: 'Литература', color: '#2196F3' },
+                                'PHILOSOPHY': { name: 'Философия', color: '#795548' },
+                                'MEDICINE': { name: 'Медицина', color: '#00BCD4' },
+                                'HISTORY': { name: 'История', color: '#607D8B' },
+                                'TRAVEL': { name: 'Путешествия', color: '#FF9800' },
+                                'BASIC_VOCABULARY': { name: 'Базовая лексика', color: '#8BC34A' },
+                                'MOVIES': { name: 'Фильмы', color: '#F44336' },
+                                'SCIENCE': { name: 'Наука', color: '#673AB7' },
+                                'JOURNALISM': { name: 'Публицистика', color: '#CDDC39' },
+                                'SPORTS': { name: 'Спорт', color: '#009688' },
+                                'INTERNET': { name: 'Интернет', color: '#FF5722' }
+                            };
+
+                            tags.forEach(tagName => {
+                                const tagSpan = document.createElement('span');
+                                tagSpan.className = 'badge me-1';
+                                
+                                // Проверяем, есть ли информация о теге в нашем словаре
+                                if (tagColors[tagName]) {
+                                    tagSpan.style.backgroundColor = tagColors[tagName].color;
+                                    tagSpan.textContent = tagColors[tagName].name;
+                                } else {
+                                    // Если тег неизвестен, используем стандартный серый цвет
+                                    tagSpan.style.backgroundColor = '#6c757d';
+                                    tagSpan.textContent = tagName;
+                                }
+                                
+                                tagsDiv.appendChild(tagSpan);
+                            });
+                        }
+                        
+                        tagsContainer.appendChild(tagsDiv);
+                    }
+                }
+
+                // Сохраняем информацию о тегах в скрытом элементе для обратной совместимости
+                if (text.tags) {
+                    const tagsText = typeof text.tags === 'string' ? text.tags : 
+                                   Array.isArray(text.tags) ? text.tags.join(', ') : String(text.tags);
+                    document.getElementById('viewTextTags').textContent = tagsText;
+                }
+
+                // Обработка даты создания
+                let dateText = '';
+                if (text.createdDate) { // Используем createdDate вместо date
+                    try {
+                        const dateObj = new Date(text.createdDate);
+                        dateText = dateObj.toLocaleDateString();
+                    } catch (e) {
+                        console.error('Ошибка при форматировании даты:', e);
+                        dateText = text.createdDate;
+                    }
+                }
+                document.getElementById('viewTextDate').textContent = dateText;
+
+                // Обработка содержимого - напрямую отображаем HTML без изменений
+                let content = text.content || '';
+                let translation = text.translation || '';
+                // Убираем преобразование переносов строк
+                document.getElementById('viewTextContent').innerHTML = content;
+                document.getElementById('viewTextTranslation').innerHTML = translation;
+
+                document.getElementById('viewTextId').value = text.id;
+
+                // Обработка словаря
+                const words = text.words || []; // Используем words вместо wordsJson
+                if (words.length > 0) {
+                    displayVocabulary(words);
+                    setupVocabularyHighlighting(words);
+                } else {
+                    const vocabularyList = document.getElementById('viewTextVocabulary');
+                    vocabularyList.innerHTML = '<p class="text-muted">Словарь пуст</p>';
+                }
+
+                // Показываем модальное окно
+                const viewModal = document.getElementById('viewTextModal');
+                const modal = new bootstrap.Modal(viewModal);
+                modal.show();
+
+                // Настраиваем подсветку совпадающих предложений
+                setupMatchedSentenceHighlighting();
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при загрузке текста: ' + error.message);
+            });
+    }
+
+    // Функция для настройки подсветки совпадающих предложений
+    function setupMatchedSentenceHighlighting() {
+        const viewContentContainer = document.getElementById('viewTextContent');
+        const viewTranslationContainer = document.getElementById('viewTextTranslation');
+        
+        // Находим все элементы с атрибутом data-match-id
+        const contentMatches = viewContentContainer.querySelectorAll('[data-match-id]');
+        const translationMatches = viewTranslationContainer.querySelectorAll('[data-match-id]');
+        
+        // Добавляем обработчики событий для подсветки
+        contentMatches.forEach(match => {
+            const matchId = match.getAttribute('data-match-id');
+            
+            match.addEventListener('mouseover', () => {
+                // Подсвечиваем соответствующий элемент в переводе
+                const translationMatch = viewTranslationContainer.querySelector(`[data-match-id="${matchId}"]`);
+                if (translationMatch) {
+                    match.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
+                    translationMatch.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
+                }
+            });
+            
+            match.addEventListener('mouseout', () => {
+                // Убираем подсветку
+                const translationMatch = viewTranslationContainer.querySelector(`[data-match-id="${matchId}"]`);
+                if (translationMatch) {
+                    match.style.backgroundColor = '';
+                    translationMatch.style.backgroundColor = '';
+                }
+            });
+        });
+        
+        // То же самое для элементов перевода
+        translationMatches.forEach(match => {
+            const matchId = match.getAttribute('data-match-id');
+            
+            match.addEventListener('mouseover', () => {
+                const contentMatch = viewContentContainer.querySelector(`[data-match-id="${matchId}"]`);
+                if (contentMatch) {
+                    match.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
+                    contentMatch.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
+                }
+            });
+            
+            match.addEventListener('mouseout', () => {
+                const contentMatch = viewContentContainer.querySelector(`[data-match-id="${matchId}"]`);
+                if (contentMatch) {
+                    match.style.backgroundColor = '';
+                    contentMatch.style.backgroundColor = '';
+                }
+            });
+        });
+    }
+
+    function deleteText(textId) {
+        if (confirm('Вы уверены, что хотите удалить этот текст?')) {
+            fetch('/admin/texts/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ textId: textId })
+            }).then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') location.reload();
+                    else alert('Ошибка удаления: ' + data.message);
+                })
+                .catch(error => alert('Ошибка удаления текста: ' + error.message));
+        }
+    }
+
+    // Обновляем функцию форматирования превью на главной странице
+    function formatPreviewText() {
+        document.querySelectorAll('.text-preview').forEach(preview => {
+            // Проверяем, есть ли у элемента атрибут data-content
+            const content = preview.getAttribute('data-content');
+            if (!content) return; // Если атрибута нет, пропускаем элемент
+            
+            // Удаляем HTML теги и ограничиваем до 150 символов
+            const plainText = content.replace(/<\/?[^>]+(>|$)/g, '').substring(0, 150);
+            
+            // Отображаем текст как есть, без замены переносов строк
+            preview.innerHTML = plainText;
+            
+            // Добавляем многоточие, если текст был обрезан
+            if (content.length > 150) {
+                preview.innerHTML += '...';
+            }
+        });
+    }
+    
+    // Функция для настройки изменяемого размера модальных окон
+    function setupResizableModal(modalId) {
+        const modalElement = document.getElementById(modalId);
+        if (!modalElement) return;
+        
+        const modalContent = modalElement.querySelector('.modal-content');
+        const resizeHandle = modalElement.querySelector('.resize-handle');
+        
+        if (resizeHandle && modalContent) {
+            let startX, startY, startWidth, startHeight;
+            
+            resizeHandle.addEventListener('mousedown', function(e) {
+                startX = e.clientX;
+                startY = e.clientY;
+                startWidth = modalContent.offsetWidth;
+                startHeight = modalContent.offsetHeight;
+                
+                document.addEventListener('mousemove', resize);
+                document.addEventListener('mouseup', stopResize);
+                
+                e.preventDefault(); // Предотвращаем выделение текста
+            });
+            
+            function resize(e) {
+                const width = startWidth + (e.clientX - startX);
+                const height = startHeight + (e.clientY - startY);
+                
+                modalContent.style.width = width + 'px';
+                modalContent.style.height = height + 'px';
+            }
+            
+            function stopResize() {
+                document.removeEventListener('mousemove', resize);
+                document.removeEventListener('mouseup', stopResize);
+            }
+        }
+        
+        // Центрируем и максимизируем модальное окно
+        const modal = modalElement.closest('.modal');
+        if (modal) {
+            modal.addEventListener('shown.bs.modal', function() {
+                // Установка размеров модального окна при открытии
+                const viewportHeight = window.innerHeight;
+                const viewportWidth = window.innerWidth;
+                
+                // Получаем modalContent снова, так как контекст может измениться
+                const modalContent = modalElement.querySelector('.modal-content');
+                if (modalContent) {
+                    // Устанавливаем большие размеры для модального окна
+                    modalContent.style.height = (viewportHeight * 0.85) + 'px';
+                    modalContent.style.width = (viewportWidth * 0.95) + 'px';
+                }
+                
+                // Перемещаем модальное окно в центр экрана
+                const modalDialog = modalElement.closest('.modal-dialog');
+                if (modalDialog) {
+                    modalDialog.style.margin = '1.75rem auto';
+                }
+            });
+        }
+    }
+
+    // Функция для очистки модального окна редактирования текста
     function clearEditModal() {
         document.getElementById('textId').value = '';
         document.getElementById('textTitle').value = '';
-        document.getElementById('textLanguage').value = '';
-        document.getElementById('textLevel').value = '';
+        document.getElementById('textLanguage').selectedIndex = 0;
+        document.getElementById('textLevel').selectedIndex = 0;
+        
+        // Очищаем выбранные теги
+        Array.from(document.getElementById('textTags').options).forEach(option => option.selected = false);
+        
+        // Очищаем тексты
         document.getElementById('editTextContent').value = '';
         document.getElementById('editTextTranslation').value = '';
         document.getElementById('textWordsJson').value = '';
-        const tagsSelect = document.getElementById('textTags');
-        Array.from(tagsSelect.options).forEach(option => option.selected = false);
+        
+        // Очищаем словарь
+        displayEditVocabulary([]);
+        
+        // Сбрасываем сопоставления
+        matchPairs = [];
+        matchCounter = 0;
+        
+        // Очищаем рабочее поле
+        clearWorkspace();
+        
+        // Обновляем заголовок модального окна
+        document.getElementById('editTextModalLabel').textContent = 'Добавить текст';
     }
 
-    function saveText() {
-        const contentElement = document.getElementById('editTextContent');
-        const translationElement = document.getElementById('editTextTranslation');
-        const content = contentElement.value.trim();
-        const translation = translationElement.value.trim();
+    // Функция для отображения словаря в режиме просмотра
+    function displayVocabulary(words) {
+        const vocabularyList = document.getElementById('viewTextVocabulary');
+        vocabularyList.innerHTML = '';
 
-        console.log('Raw content from textarea:', contentElement.value);
-        console.log('Raw translation from textarea:', translationElement.value);
-        console.log('Trimmed content:', content);
-        console.log('Trimmed translation:', translation);
-
-        if (!content || !translation) {
-            alert('Поля "Текст" и "Перевод" обязательны для заполнения');
+        if (!words || words.length === 0) {
+            vocabularyList.innerHTML = '<p class="text-muted">Словарь пуст</p>';
             return;
         }
 
-        const selectedTags = Array.from(document.getElementById('textTags').selectedOptions).map(option => option.value);
-        const wordsJson = document.getElementById('textWordsJson').value.trim();
-        let words = [];
-        if (wordsJson) {
-            try {
-                words = JSON.parse(wordsJson);
-            } catch (e) {
-                alert('Ошибка в формате JSON слов: ' + e.message);
-                return;
+        words.forEach((word, index) => {
+            const wordItem = document.createElement('div');
+            wordItem.className = 'vocabulary-item';
+            wordItem.dataset.word = word.word;
+            wordItem.innerHTML = `
+            <div class="word">${word.word}</div>
+            <div class="translation">${word.translation}</div>
+        `;
+
+            wordItem.addEventListener('mouseover', () => {
+                highlightWordInContent(word.word);
+                wordItem.classList.add('highlighted');
+            });
+
+            wordItem.addEventListener('mouseout', () => {
+                removeWordHighlightInContent();
+                wordItem.classList.remove('highlighted');
+            });
+
+            vocabularyList.appendChild(wordItem);
+        });
+
+        setupVocabularyHighlighting(words);
+    }
+    
+    // Функция для подсветки слов в тексте при просмотре
+    function setupVocabularyHighlighting(words) {
+        if (!words || words.length === 0) return;
+
+        const contentContainer = document.getElementById('viewTextContent');
+        if (!contentContainer) return; // Добавляем проверку
+
+        // Сначала удаляем все существующие подсветки
+        const existingHighlights = contentContainer.querySelectorAll('.vocabulary-word');
+        existingHighlights.forEach(el => {
+            const parent = el.parentNode;
+            parent.replaceChild(document.createTextNode(el.textContent), el);
+        });
+
+        // Сортируем слова от самых длинных к самым коротким для правильного подсвечивания
+        const sortedWords = [...words].sort((a, b) => b.word.length - a.word.length);
+
+        // Создаем текстовый TreeWalker для обхода всех текстовых узлов
+        const walker = document.createTreeWalker(contentContainer, NodeFilter.SHOW_TEXT, null, false);
+        const textNodes = [];
+        let currentNode;
+
+        // Собираем все текстовые узлы в массив
+        while (currentNode = walker.nextNode()) {
+            textNodes.push(currentNode);
+        }
+
+        // Функция для обработки отдельного текстового узла
+        function processTextNode(textNode) {
+            const originalText = textNode.nodeValue;
+            if (!originalText || originalText.trim() === '') return;
+
+            // Создаем массив фрагментов для этого узла
+            const fragments = [];
+            let lastPos = 0;
+            
+            // Создаем временную копию оригинального текста
+            const workingText = originalText;
+            
+            // Находим все вхождения всех слов сразу
+            const allMatches = [];
+            
+            for (const wordObj of sortedWords) {
+                const word = wordObj.word;
+                if (!word || word.trim() === '') continue;
+                
+                const escapedWord = escapeRegExp(word);
+                const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
+                
+                let match;
+                while ((match = regex.exec(workingText)) !== null) {
+                    allMatches.push({
+                        word: wordObj,
+                        start: match.index,
+                        end: match.index + match[0].length,
+                        text: match[0]
+                    });
+                }
+            }
+            
+            // Сортируем совпадения по позиции и удаляем перекрывающиеся
+            allMatches.sort((a, b) => a.start - b.start);
+            const validMatches = [];
+            
+            for (const match of allMatches) {
+                // Проверяем, пересекается ли текущее совпадение с уже добавленными
+                const overlaps = validMatches.some(vm => 
+                    (match.start < vm.end && match.end > vm.start)
+                );
+                
+                if (!overlaps) {
+                    validMatches.push(match);
+                }
+            }
+            
+            // Обрабатываем валидные совпадения, добавляя текст до них и сами совпадения
+            let currentPos = 0;
+            
+            for (const match of validMatches) {
+                // Добавляем текст до совпадения
+                if (match.start > currentPos) {
+                    fragments.push(document.createTextNode(
+                        workingText.substring(currentPos, match.start)
+                    ));
+                }
+                
+                // Создаем элемент для выделенного слова
+                const span = document.createElement('span');
+                span.className = 'vocabulary-word';
+                span.setAttribute('data-word', escapeHTML(match.word.word));
+                span.setAttribute('data-translation', escapeHTML(match.word.translation));
+                span.textContent = match.text;
+                fragments.push(span);
+                
+                // Обновляем текущую позицию
+                currentPos = match.end;
+            }
+            
+            // Добавляем оставшийся текст после последнего совпадения
+            if (currentPos < workingText.length) {
+                fragments.push(document.createTextNode(
+                    workingText.substring(currentPos)
+                ));
+            }
+            
+            // Если есть фрагменты для замены, заменяем текстовый узел
+            if (fragments.length > 0) {
+                const parent = textNode.parentNode;
+                fragments.forEach(frag => parent.insertBefore(frag, textNode));
+                parent.removeChild(textNode);
             }
         }
-        const text = {
-            id: document.getElementById('textId').value || null,
-            title: document.getElementById('textTitle').value.trim(),
-            language: document.getElementById('textLanguage').value,
-            level: document.getElementById('textLevel').value,
-            tags: selectedTags.join(','),
-            content: content,
-            translation: translation,
-            words: words
-        };
-        console.log('Sending text data:', text);
-        const url = text.id ? '/admin/texts/edit' : '/admin/texts/add';
-        fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(text)
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    location.reload();
-                } else {
-                    alert('Ошибка сохранения: ' + data.message);
+
+        // Обрабатываем текстовые узлы в обратном порядке,
+        // чтобы не нарушить навигацию по дереву при замене узлов
+        for (let i = textNodes.length - 1; i >= 0; i--) {
+            processTextNode(textNodes[i]);
+        }
+
+        // Настраиваем обработчики для подсветки
+        setupWordHighlightHandlers();
+    }
+    
+    // Функция для подсветки слова в тексте
+    function highlightWordInContent(word) {
+        const contentContainer = document.getElementById('viewTextContent');
+        const wordElements = contentContainer.querySelectorAll(`.vocabulary-word[data-word="${word}"]`);
+        
+        wordElements.forEach(element => {
+            element.classList.add('highlighted');
+        });
+    }
+    
+    // Функция для удаления подсветки слов в тексте
+    function removeWordHighlightInContent() {
+        const contentContainer = document.getElementById('viewTextContent');
+        const highlightedWords = contentContainer.querySelectorAll('.vocabulary-word.highlighted');
+        
+        highlightedWords.forEach(element => {
+            element.classList.remove('highlighted');
+        });
+    }
+    
+    // Функция для настройки обработчиков подсветки слов
+    function setupWordHighlightHandlers() {
+        const contentContainer = document.getElementById('viewTextContent');
+        const wordElements = contentContainer.querySelectorAll('.vocabulary-word');
+        
+        wordElements.forEach(element => {
+            // Подсветка соответствующего слова в словаре при наведении
+            element.addEventListener('mouseover', function() {
+                const word = this.dataset.word;
+                const translation = this.dataset.translation;
+                
+                // Подсвечиваем слово
+                element.classList.add('highlighted');
+                
+                // Подсвечиваем соответствующий элемент в словаре
+                const vocabularyItem = document.querySelector(`.vocabulary-item[data-word="${word}"]`);
+                if (vocabularyItem) {
+                    vocabularyItem.classList.add('highlighted');
                 }
-            })
-            .catch(error => alert('Ошибка сохранения текста: ' + error.message));
+                
+                // Показываем подсказку
+                showTooltip(element, translation);
+            });
+            
+            element.addEventListener('mouseout', function() {
+                // Убираем подсветку
+                element.classList.remove('highlighted');
+                
+                // Убираем подсветку в словаре
+                const word = this.dataset.word;
+                const vocabularyItem = document.querySelector(`.vocabulary-item[data-word="${word}"]`);
+                if (vocabularyItem) {
+                    vocabularyItem.classList.remove('highlighted');
+                }
+                
+                // Скрываем подсказку
+                hideTooltip();
+            });
+        });
+    }
+    
+    // Функция для отображения подсказки
+    let activeTooltip = null;
+    function showTooltip(element, text) {
+        // Удаляем предыдущую подсказку, если есть
+        hideTooltip();
+        
+        // Создаем подсказку
+        const tooltip = document.createElement('div');
+        tooltip.className = 'word-tooltip';
+        tooltip.textContent = text;
+        document.body.appendChild(tooltip);
+        
+        // Позиционируем подсказку над элементом
+        const rect = element.getBoundingClientRect();
+        tooltip.style.left = (rect.left + window.scrollX) + 'px';
+        tooltip.style.top = (rect.top + window.scrollY - tooltip.offsetHeight - 5) + 'px';
+        
+        // Проверяем, не выходит ли подсказка за границы экрана
+        const tooltipRect = tooltip.getBoundingClientRect();
+        if (tooltipRect.left < 0) {
+            tooltip.style.left = '0px';
+        } else if (tooltipRect.right > window.innerWidth) {
+            tooltip.style.left = (window.innerWidth - tooltipRect.width) + 'px';
+        }
+        
+        if (tooltipRect.top < 0) {
+            tooltip.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+        }
+        
+        activeTooltip = tooltip;
+    }
+    
+    // Функция для скрытия подсказки
+    function hideTooltip() {
+        if (activeTooltip) {
+            activeTooltip.remove();
+            activeTooltip = null;
+        }
     }
 
-    function previewText() {
-        const content = document.getElementById('editTextContent').value.replace(/\n/g, '<br>');
-        const translation = document.getElementById('editTextTranslation').value.replace(/\n/g, '<br>');
-        const wordsJson = document.getElementById('textWordsJson').value.trim();
-        let words = [];
-        if (wordsJson) {
+    // Функция для отображения словаря в режиме редактирования
+    function displayEditVocabulary(words) {
+        const vocabularyList = document.getElementById('editTextVocabulary');
+        vocabularyList.innerHTML = '';
+        
+        if (!words || words.length === 0) {
+            vocabularyList.innerHTML = '<p class="text-muted">Словарь пуст</p>';
+            document.getElementById('textWordsJson').value = '[]';
+            return;
+        }
+        
+        // Обновляем скрытое поле с JSON
+        document.getElementById('textWordsJson').value = JSON.stringify(words);
+        
+        words.forEach((word, index) => {
+            const wordItem = document.createElement('div');
+            wordItem.className = 'vocabulary-item-edit';
+            wordItem.dataset.word = word.word;
+            
+            wordItem.innerHTML = `
+                <div class="word-translation">
+                    <strong>${word.word}</strong> - ${word.translation}
+                </div>
+                <button type="button" class="btn-remove" onclick="removeWordFromVocabulary(${index})">✕</button>
+            `;
+            
+            // Добавляем обработчики событий для подсветки
+            wordItem.addEventListener('mouseover', () => {
+                highlightEditingWordInContent(word.word);
+                wordItem.classList.add('highlighted');
+            });
+            
+            wordItem.addEventListener('mouseout', () => {
+                removeEditingWordHighlightInContent();
+                wordItem.classList.remove('highlighted');
+            });
+            
+            vocabularyList.appendChild(wordItem);
+        });
+        
+        // Применяем подсветку слов в тексте
+        highlightVocabularyWords();
+    }
+    
+    // Функция для подсветки слова в режиме редактирования
+    function highlightEditingWordInContent(word) {
+        const contentTextarea = document.getElementById('editTextContent');
+        const content = contentTextarea.value;
+        
+        // Если есть выделение слов, используем его
+        if (contentTextarea.dataset.highlightedContent) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = contentTextarea.dataset.highlightedContent;
+            
+            const wordElements = tempDiv.querySelectorAll(`.vocabulary-word[data-word="${word}"]`);
+            wordElements.forEach(element => {
+                element.classList.add('highlighted');
+            });
+        }
+    }
+    
+    // Функция для удаления подсветки в режиме редактирования
+    function removeEditingWordHighlightInContent() {
+        const contentTextarea = document.getElementById('editTextContent');
+        
+        // Если есть выделение слов, используем его
+        if (contentTextarea.dataset.highlightedContent) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = contentTextarea.dataset.highlightedContent;
+            
+            const wordElements = tempDiv.querySelectorAll('.vocabulary-word.highlighted');
+            wordElements.forEach(element => {
+                element.classList.remove('highlighted');
+            });
+        }
+    }
+    
+    // Функция для удаления слова из словаря
+    function removeWordFromVocabulary(index) {
+        const wordsJsonEl = document.getElementById('textWordsJson');
+        if (!wordsJsonEl.value) return;
+        
+        try {
+            const words = JSON.parse(wordsJsonEl.value);
+            if (index >= 0 && index < words.length) {
+                words.splice(index, 1);
+                displayEditVocabulary(words);
+            }
+        } catch (e) {
+            console.error('Ошибка при удалении слова из словаря:', e);
+        }
+    }
+    
+    // Обновление функции editText для применения подсветки слов после загрузки
+    function editText(textId) {
+        fetch('/texts/' + textId)
+            .then(response => {
+                // Проверяем тип контента - если это HTML, то это ошибка
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('text/html')) {
+                    throw new Error('Сервер вернул HTML вместо JSON. Возможно, проблема с аутентификацией или сессией.');
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('textId').value = data.id;
+                document.getElementById('textTitle').value = data.title;
+                document.getElementById('textLanguage').value = data.language.name;
+                document.getElementById('textLevel').value = data.level;
+                
+                // Напрямую используем полученный HTML без преобразований
+                let content = data.content;
+                let translation = data.translation;
+                
+                // Убираем преобразования <br> <-> \n
+                document.getElementById('editTextContent').value = content;
+                document.getElementById('editTextTranslation').value = translation;
+                
+                // Затем восстанавливаем сопоставления
+                matchPairs = [];
+                matchCounter = 0;
+                
+                // Обновляем список сопоставленных пар
+                updateMatchedPairsList();
+                
+                // Обрабатываем теги
+                const tagsSelect = document.getElementById('textTags');
+                // Сначала снимаем выделение со всех опций
+                Array.from(tagsSelect.options).forEach(option => option.selected = false);
+                
+                // Проверяем формат тегов и обрабатываем их соответственно
+                if (data.tags) {
+                    let tagsList = [];
+                    
+                    // Проверяем, является ли tags строкой JSON или обычной строкой с запятыми
+                    if (data.tags.startsWith('[') && data.tags.endsWith(']')) {
+                        try {
+                            // Пробуем распарсить как JSON
+                            tagsList = JSON.parse(data.tags);
+                        } catch (e) {
+                            // Если ошибка парсинга, разделяем по запятой
+                            console.warn('Не удалось распарсить теги как JSON:', e);
+                            tagsList = data.tags.split(',').map(t => t.trim());
+                        }
+                    } else {
+                        // Обычная строка с запятыми
+                        tagsList = data.tags.split(',').map(t => t.trim());
+                    }
+                    
+                    // Выбираем соответствующие опции
+                    Array.from(tagsSelect.options).forEach(option => {
+                        option.selected = tagsList.includes(option.value);
+                    });
+                }
+                
+                // Отображаем словарь
+                displayEditVocabulary(data.words);
+            })
+            .catch(error => console.error('Ошибка загрузки текста для редактирования:', error));
+    }
+
+    // Функция для обработки нажатия кнопки "Взять в работу"
+    function takeTextToWork() {
+        const textTitle = document.getElementById('viewTextTitle').textContent;
+        
+        // Пока просто выводим сообщение
+        alert(`Функция "Взять в работу" для текста "${textTitle}" будет реализована в следующей версии.`);
+        
+        // Здесь в будущем будет код для отправки запроса к API для начала работы с текстом
+    }
+
+    // Функция для показа модального окна добавления слова в словарь
+    function showAddWordModal() {
+        const menu = document.getElementById('contextMenu');
+        const textareaId = menu.dataset.textareaId;
+        const selectedText = menu.dataset.selectedText;
+        const selectionStart = parseInt(menu.dataset.selectionStart);
+        const selectionEnd = parseInt(menu.dataset.selectionEnd);
+        const textarea = document.getElementById(textareaId);
+        
+        // Получаем полное предложение для примера
+        const text = textarea.value;
+        const fullSentence = findFullSentence(text, selectionStart, selectionEnd);
+        
+        // Заполняем поля модального окна
+        document.getElementById('addWordText').value = selectedText.trim();
+        document.getElementById('addWordExample').value = fullSentence.text;
+        
+        // Если выбран русский перевод, предзаполняем поле перевода примера
+        if (textareaId === 'editTextTranslation') {
+            document.getElementById('addWordExampleTranslation').value = fullSentence.text;
+            // Находим соответствующее предложение в оригинале
+            const originalTextarea = document.getElementById('editTextContent');
+            // Это упрощенный подход - в идеале нужно использовать сопоставленные пары
+            document.getElementById('addWordExample').value = '';
+        } else {
+            document.getElementById('addWordExampleTranslation').value = '';
+        }
+        
+        // Показываем модальное окно
+        const addWordModal = new bootstrap.Modal(document.getElementById('addWordModal'));
+        addWordModal.show();
+        
+        // Закрываем контекстное меню
+        menu.style.display = 'none';
+        
+        // Настраиваем обработчик для кнопки добавления
+        document.getElementById('addWordToVocabularyBtn').onclick = function() {
+            addWordToVocabulary();
+        };
+    }
+    
+    // Функция для добавления слова в словарь
+    function addWordToVocabulary() {
+        const word = document.getElementById('addWordText').value.trim();
+        const translation = document.getElementById('addWordTranslation').value.trim();
+        const exampleSentence = document.getElementById('addWordExample').value.trim();
+        const exampleTranslation = document.getElementById('addWordExampleTranslation').value.trim();
+        
+        // Проверяем обязательные поля
+        if (!word || !translation) {
+            alert('Пожалуйста, заполните слово и перевод.');
+            return;
+        }
+        
+        // Создаем объект слова
+        const newWord = {
+            word: word,
+            translation: translation,
+            exampleSentence: exampleSentence,
+            exampleTranslation: exampleTranslation
+        };
+        
+        // Получаем текущий словарь
+        let currentVocabulary = [];
+        const wordsJsonEl = document.getElementById('textWordsJson');
+        
+        if (wordsJsonEl.value && wordsJsonEl.value.trim()) {
             try {
-                words = JSON.parse(wordsJson);
+                currentVocabulary = JSON.parse(wordsJsonEl.value);
             } catch (e) {
-                alert('Ошибка в формате JSON слов: ' + e.message);
-                return;
+                console.error('Ошибка при парсинге словаря:', e);
+                currentVocabulary = [];
             }
         }
+        
+        // Проверяем, не существует ли уже такое слово
+        const existingWordIndex = currentVocabulary.findIndex(item => 
+            item.word.toLowerCase() === word.toLowerCase()
+        );
+        
+        if (existingWordIndex !== -1) {
+            if (confirm('Слово уже существует в словаре. Хотите обновить его?')) {
+                currentVocabulary[existingWordIndex] = newWord;
+            } else {
+                return;
+            }
+        } else {
+            // Добавляем новое слово
+            currentVocabulary.push(newWord);
+        }
+        
+        // Обновляем словарь
+        displayEditVocabulary(currentVocabulary);
+        
+        // Выделяем это слово в тексте
+        highlightVocabularyWords();
+        
+        // Закрываем модальное окно
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addWordModal'));
+        modal.hide();
+    }
+    
+    // Функция для выделения слов из словаря в тексте
+    function highlightVocabularyWords(text, words) {
+        if (!text || !words || words.length === 0) return text;
+        
+        // Создаем временный div для работы с HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = text;
+        
+        // Сортируем слова от самых длинных к самым коротким
+        const sortedWords = [...words].sort((a, b) => b.word.length - a.word.length);
+        
+        // Обходим все текстовые узлы в содержимом
+        const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
+        const textNodes = [];
+        let currentNode;
+        
+        // Сначала собираем все текстовые узлы
+        while (currentNode = walker.nextNode()) {
+            textNodes.push(currentNode);
+        }
+        
+        // Функция для обработки текстового узла
+        function processTextNode(textNode) {
+            const text = textNode.nodeValue;
+            if (!text || text.trim() === '') return;
+            
+            // Создаем новый массив для фрагментов для этого узла
+            const fragments = [];
+            
+            // Временная копия текста для поиска всех слов
+            let remainingText = text;
+            let textOffset = 0;
+            
+            // Проходим по всем словам и находим их в тексте
+            for (const wordObj of sortedWords) {
+                const word = wordObj.word;
+                const escapedWord = escapeRegExp(word);
+                const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
+                
+                // Ищем все вхождения слова в тексте
+                let match;
+                let lastLastIndex = 0;
+                
+                // Сбрасываем lastIndex для регулярного выражения
+                regex.lastIndex = 0;
+                
+                // Копия текста для этой итерации
+                let processingText = remainingText;
+                
+                // Собираем все совпадения для текущего слова
+                const matches = [];
+                while ((match = regex.exec(processingText)) !== null) {
+                    matches.push({
+                        index: match.index,
+                        text: match[0],
+                        end: regex.lastIndex
+                    });
+                }
+                
+                // Если нет совпадений, переходим к следующему слову
+                if (matches.length === 0) continue;
+                
+                // Создаем новые фрагменты с учетом найденных совпадений
+                const newFragments = [];
+                let currentIndex = 0;
+                
+                // Добавляем текст до первого совпадения
+                if (matches[0].index > 0) {
+                    newFragments.push(document.createTextNode(processingText.substring(0, matches[0].index)));
+                }
+                
+                // Обрабатываем все совпадения
+                for (let i = 0; i < matches.length; i++) {
+                    const match = matches[i];
+                    
+                    // Создаем выделенный элемент для слова
+                    const span = document.createElement('span');
+                    span.className = 'vocabulary-word';
+                    span.setAttribute('data-word', escapeHTML(word));
+                    span.setAttribute('data-translation', escapeHTML(wordObj.translation));
+                    span.textContent = match.text;
+                    newFragments.push(span);
+                    
+                    // Добавляем текст между текущим и следующим совпадением
+                    const nextMatchStart = i < matches.length - 1 ? matches[i+1].index : processingText.length;
+                    if (match.end < nextMatchStart) {
+                        newFragments.push(document.createTextNode(processingText.substring(match.end, nextMatchStart)));
+                    }
+                }
+                
+                // Обновляем оставшийся текст, заменяя слова на маркеры
+                remainingText = '';
+                for (const frag of newFragments) {
+                    if (frag.nodeType === Node.TEXT_NODE) {
+                        remainingText += frag.nodeValue;
+                    } else {
+                        // Используем маркер, который не будет совпадать с другими словами
+                        const marker = `[MARKER_${word}_${Math.random().toString(36).substring(2, 7)}]`;
+                        remainingText += marker;
+                    }
+                }
+            }
+            
+            // После обработки всех слов создаем окончательные фрагменты
+            if (remainingText !== text) {
+                // Если текст изменился, заменяем узел на фрагменты с подсветкой
+                const parent = textNode.parentNode;
+                
+                // Используем созданные фрагменты или возвращаем исходный текст, если ничего не найдено
+                if (fragments.length > 0) {
+                    fragments.forEach(frag => parent.insertBefore(frag, textNode));
+                } else {
+                    // Если обработка слов изменила текст, но фрагменты не созданы
+                    // (это может произойти из-за внутренней логики обработки),
+                    // просто используем итоговый текст
+                    parent.insertBefore(document.createTextNode(remainingText), textNode);
+                }
+                
+                parent.removeChild(textNode);
+            }
+        }
+        
+        // Затем обрабатываем каждый узел в обратном порядке,
+        // чтобы не нарушить структуру дерева при обработке
+        for (let i = textNodes.length - 1; i >= 0; i--) {
+            processTextNode(textNodes[i]);
+        }
+        
+        return tempDiv.innerHTML;
+    }
+    
+    // Функция для экранирования HTML-символов
+    function escapeHTML(str) {
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 
-        document.getElementById('textContent').innerHTML = content.split('. ').map(s => '<p class="sentence">' + s + '</p>').join('');
-        document.getElementById('textTranslation').innerHTML = translation.split('. ').map(s => '<p class="sentence">' + s + '</p>').join('');
-        document.getElementById('textWords').innerHTML = '<h5>Словарь:</h5>' +
-            words.map(w => `<p><strong>${w.word}</strong> - ${w.translation} (Пример: ${w.exampleSentence})</p>`).join('');
-        const selectedTags = Array.from(document.getElementById('textTags').selectedOptions).map(option => option.text).join(', ');
-        document.getElementById('textWords').innerHTML += `<p class="tag-list">Теги: ${selectedTags}</p>`;
-        document.querySelector('#viewTextModal .created-date').textContent = 'Предпросмотр';
-
-        const viewModal = new bootstrap.Modal(document.getElementById('viewTextModal'));
-        viewModal.show();
+    // Добавляем обработчики для редактирования текста и активации подсветки
+    document.addEventListener('DOMContentLoaded', function() {
+        // Обработчик для ввода текста в редакторе
+        const contentTextarea = document.getElementById('editTextContent');
+        if (contentTextarea) {
+            contentTextarea.addEventListener('input', debounce(function() {
+                highlightVocabularyWordsInEditor();
+            }, 300));
+        }
+        
+        // Обработчик для словаря в редакторе
+        const wordsJsonEl = document.getElementById('textWordsJson');
+        if (wordsJsonEl) {
+            wordsJsonEl.addEventListener('input', debounce(function() {
+                highlightVocabularyWordsInEditor();
+            }, 300));
+        }
+    });
+    
+    // Функция debounce для оптимизации вызовов при вводе
+    function debounce(func, delay) {
+        let timeout;
+        return function() {
+            const context = this;
+            const args = arguments;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), delay);
+        };
     }
 </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'923f406409b632ed',t:'MTc0MjU3OTAwNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'923f89731c24ed88',t:'MTc0MjU4MTk5OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>

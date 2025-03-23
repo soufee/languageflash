@@ -4,7 +4,6 @@ import ci.ashamaz.languageflash.model.*;
 import ci.ashamaz.languageflash.service.LanguageService;
 import ci.ashamaz.languageflash.service.TextService;
 import ci.ashamaz.languageflash.service.UserService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -35,7 +34,6 @@ public class TextController extends CommonControllerUtil {
     @Autowired
     private UserService userService;
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @GetMapping("/texts")
     public String texts(HttpSession session, Model model,
@@ -80,7 +78,10 @@ public class TextController extends CommonControllerUtil {
         model.addAttribute("texts", textsWithRussianTags);
         model.addAttribute("page", textPage);
 
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Authentication auth = null;
+        if (SecurityContextHolder.getContext() != null) {
+            auth = SecurityContextHolder.getContext().getAuthentication();
+        }
         boolean isAuthenticated = auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal());
         boolean isAdmin = isAuthenticated && auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
@@ -113,8 +114,8 @@ public class TextController extends CommonControllerUtil {
             text.setLanguage(language);
             text.setLevel((String) requestBody.get("level"));
             text.setTags((String) requestBody.get("tags"));
-            text.setContent((String) requestBody.get("content"));
-            text.setTranslation((String) requestBody.get("translation"));
+            text.setContent((String) requestBody.get("content")); // Принимаем HTML
+            text.setTranslation((String) requestBody.get("translation")); // Принимаем HTML
             text.setActive(true);
 
             log.debug("Text data: title={}, language={}, level={}, tags={}, content={}, translation={}",
@@ -162,8 +163,8 @@ public class TextController extends CommonControllerUtil {
             existingText.setLanguage(language);
             existingText.setLevel((String) requestBody.get("level"));
             existingText.setTags((String) requestBody.get("tags"));
-            existingText.setContent((String) requestBody.get("content"));
-            existingText.setTranslation((String) requestBody.get("translation"));
+            existingText.setContent((String) requestBody.get("content")); // Принимаем HTML
+            existingText.setTranslation((String) requestBody.get("translation")); // Принимаем HTML
 
             log.debug("Updated text data: id={}, title={}, language={}, level={}, tags={}, content={}, translation={}",
                     existingText.getId(), existingText.getTitle(), existingText.getLanguage().getName(), existingText.getLevel(),
