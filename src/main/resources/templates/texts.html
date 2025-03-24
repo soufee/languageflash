@@ -195,18 +195,18 @@
         }
         
         .text-view-container {
-            margin-top: 20px;
-            height: calc(75vh - 150px); /* Учитываем высоту заголовка и футера */
+            height: calc(100vh - 250px);
+            margin-bottom: 0 !important;
         }
         
         .view-text-content {
-            white-space: pre-line !important;
-            line-height: 1.6;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 5px;
             height: 100%;
             overflow-y: auto;
+            padding: 10px;
+            white-space: pre-line !important;
+            line-height: 1.6;
+            background-color: #f9f9f9;
+            border-radius: 5px;
         }
         
         .view-text-line {
@@ -400,6 +400,88 @@
             max-width: 250px;
             pointer-events: none;
         }
+
+        /* Добавим стили для текстовых контейнеров и улучшенной прокрутки */
+        .view-text-content {
+            height: 100%;
+            overflow-y: auto;
+            padding: 10px;
+            white-space: pre-line !important;
+            line-height: 1.6;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+
+        /* Обеспечим просмотр текста на полный размер модального окна */
+        .text-view-container {
+            height: 100%;
+        }
+
+        .text-view-container .card {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .text-view-container .card-body {
+            flex: 1;
+            overflow: hidden;
+            padding: 0;
+        }
+
+        .vocabulary-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        /* Стили для подсвеченных элементов */
+        [data-match-id]:hover {
+            background-color: rgba(255, 255, 0, 0.3);
+            cursor: pointer;
+        }
+
+        .highlighted {
+            background-color: rgba(255, 215, 0, 0.3);
+        }
+
+        /* Стили для левой колонки и словаря */
+        .modal-body .row {
+            height: 100%;
+        }
+
+        .modal-body .col-md-3,
+        .modal-body .col-md-9 {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-info {
+            flex-shrink: 0;
+        }
+
+        #viewTextTagsContainer {
+            flex-shrink: 0;
+        }
+
+        .vocabulary-block {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .vocabulary-block h6 {
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+
+        .vocabulary-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            height: 100%;
+        }
     </style>
 </head>
 <body>
@@ -488,7 +570,10 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="viewTextModalLabel">Просмотр текста</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                <div class="ms-auto d-flex align-items-center">
+                    <button type="button" class="btn btn-primary" id="takeToWorkBtn">Взять в работу</button>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
             </div>
             <div class="modal-body">
                 <div class="row">
@@ -545,8 +630,6 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="takeToWorkBtn">Взять в работу</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
                 <input type="hidden" id="viewTextId">
                 <div class="resize-handle" style="position: absolute; right: 3px; bottom: 3px; cursor: se-resize;">⋮⋮</div>
             </div>
@@ -671,7 +754,7 @@
 </div>
 
 <!-- Модальное окно для добавления слова в словарь -->
-<div class="modal fade" id="addWordModal" tabindex="-1" aria-labelledby="addWordModalLabel" aria-hidden="true">
+<div class="modal fade" id="addWordModal" tabindex="-1" aria-labelledby="addWordModalLabel" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -681,7 +764,7 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label for="addWordText" class="form-label">Слово/Фраза</label>
-                    <input type="text" class="form-control" id="addWordText" required>
+                    <input type="text" class="form-control" id="addWordText" required autofocus>
                 </div>
                 <div class="mb-3">
                     <label for="addWordTranslation" class="form-label">Перевод</label>
@@ -1476,6 +1559,9 @@
                 if (translationMatch) {
                     match.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
                     translationMatch.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
+                    
+                    // Прокручиваем перевод до соответствующего элемента
+                    scrollToElement(translationMatch, viewTranslationContainer);
                 }
             });
             
@@ -1498,6 +1584,9 @@
                 if (contentMatch) {
                     match.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
                     contentMatch.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
+                    
+                    // Прокручиваем оригинал до соответствующего элемента
+                    scrollToElement(contentMatch, viewContentContainer);
                 }
             });
             
@@ -1508,6 +1597,32 @@
                     contentMatch.style.backgroundColor = '';
                 }
             });
+        });
+    }
+    
+    // Функция для прокрутки контейнера до указанного элемента
+    function scrollToElement(element, container) {
+        if (!element || !container) {
+            console.error('scrollToElement: Missing element or container', { element, container });
+            return;
+        }
+        
+        // Получаем координаты элемента относительно документа
+        const elementRect = element.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        
+        // Вычисляем позицию элемента относительно контейнера
+        const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+        const elementHeight = element.offsetHeight;
+        const containerHeight = container.clientHeight;
+        
+        // Прокручиваем контейнер так, чтобы элемент был посередине
+        const targetScroll = relativeTop - (containerHeight / 2) + (elementHeight / 2);
+        
+        // Плавно прокручиваем к элементу
+        container.scrollTo({
+            top: Math.max(0, targetScroll),
+            behavior: 'smooth'
         });
     }
 
@@ -1659,6 +1774,22 @@
             wordItem.addEventListener('mouseover', () => {
                 highlightWordInContent(word.word);
                 wordItem.classList.add('highlighted');
+                
+                // Прокручиваем оба текста до первого экземпляра этого слова
+                const contentContainer = document.getElementById('viewTextContent');
+                const firstHighlightedWord = contentContainer.querySelector(`.vocabulary-word[data-word="${word.word}"]`);
+                if (firstHighlightedWord) {
+                    scrollToElement(firstHighlightedWord, contentContainer);
+                    
+                    // Также ищем это слово в переводе и прокручиваем к нему
+                    const translationContainer = document.getElementById('viewTextTranslation');
+                    if (translationContainer) {
+                        const translationMatch = translationContainer.querySelector(`[data-match-id="${firstHighlightedWord.closest('[data-match-id]')?.getAttribute('data-match-id')}"]`);
+                        if (translationMatch) {
+                            scrollToElement(translationMatch, translationContainer);
+                        }
+                    }
+                }
             });
 
             wordItem.addEventListener('mouseout', () => {
@@ -1818,7 +1949,9 @@
     // Функция для настройки обработчиков подсветки слов
     function setupWordHighlightHandlers() {
         const contentContainer = document.getElementById('viewTextContent');
+        const translationContainer = document.getElementById('viewTextTranslation');
         const wordElements = contentContainer.querySelectorAll('.vocabulary-word');
+        const vocabularyContainer = document.getElementById('viewTextVocabulary');
         
         wordElements.forEach(element => {
             // Подсветка соответствующего слова в словаре при наведении
@@ -1830,9 +1963,24 @@
                 element.classList.add('highlighted');
                 
                 // Подсвечиваем соответствующий элемент в словаре
-                const vocabularyItem = document.querySelector(`.vocabulary-item[data-word="${word}"]`);
+                const vocabularyItem = vocabularyContainer.querySelector(`.vocabulary-item[data-word="${word}"]`);
                 if (vocabularyItem) {
                     vocabularyItem.classList.add('highlighted');
+                    // Прокручиваем словарь до этого элемента
+                    scrollToElement(vocabularyItem, vocabularyContainer);
+                }
+                
+                // Найдем предложение (data-match-id), в котором находится слово
+                const matchElement = element.closest('[data-match-id]');
+                if (matchElement) {
+                    const matchId = matchElement.getAttribute('data-match-id');
+                    const translationMatch = translationContainer.querySelector(`[data-match-id="${matchId}"]`);
+                    if (translationMatch) {
+                        // Подсвечиваем соответствующее предложение в переводе
+                        translationMatch.style.backgroundColor = 'rgba(200, 255, 200, 0.2)';
+                        // Прокручиваем перевод до соответствующего элемента
+                        scrollToElement(translationMatch, translationContainer);
+                    }
                 }
                 
                 // Показываем подсказку
@@ -1845,9 +1993,19 @@
                 
                 // Убираем подсветку в словаре
                 const word = this.dataset.word;
-                const vocabularyItem = document.querySelector(`.vocabulary-item[data-word="${word}"]`);
+                const vocabularyItem = vocabularyContainer.querySelector(`.vocabulary-item[data-word="${word}"]`);
                 if (vocabularyItem) {
                     vocabularyItem.classList.remove('highlighted');
+                }
+                
+                // Убираем подсветку в переводе
+                const matchElement = element.closest('[data-match-id]');
+                if (matchElement) {
+                    const matchId = matchElement.getAttribute('data-match-id');
+                    const translationMatch = translationContainer.querySelector(`[data-match-id="${matchId}"]`);
+                    if (translationMatch) {
+                        translationMatch.style.backgroundColor = '';
+                    }
                 }
                 
                 // Скрываем подсказку
@@ -2081,7 +2239,8 @@
         const fullSentence = findFullSentence(text, selectionStart, selectionEnd);
         
         // Заполняем поля модального окна
-        document.getElementById('addWordText').value = selectedText.trim();
+        const addWordTextElement = document.getElementById('addWordText');
+        addWordTextElement.value = selectedText.trim();
         document.getElementById('addWordExample').value = fullSentence.text;
         
         // Если выбран русский перевод, предзаполняем поле перевода примера
@@ -2095,17 +2254,80 @@
             document.getElementById('addWordExampleTranslation').value = '';
         }
         
-        // Показываем модальное окно
-        const addWordModal = new bootstrap.Modal(document.getElementById('addWordModal'));
-        addWordModal.show();
-        
-        // Закрываем контекстное меню
+        // Закрываем контекстное меню перед показом модального окна
         menu.style.display = 'none';
         
-        // Настраиваем обработчик для кнопки добавления
-        document.getElementById('addWordToVocabularyBtn').onclick = function() {
+        // Сначала прячем модальное окно редактирования текста при необходимости
+        const editTextModal = document.getElementById('editTextModal');
+        if (editTextModal) {
+            const editTextModalInstance = bootstrap.Modal.getInstance(editTextModal);
+            if (editTextModalInstance) {
+                // Запоминаем, что нужно будет восстановить это модальное окно позже
+                document.body.dataset.restoreEditTextModal = "true";
+                editTextModalInstance.hide();
+            }
+        }
+        
+        // Показываем модальное окно добавления слова с уникальным идентификатором, чтобы избежать конфликтов
+        const addWordModalElement = document.getElementById('addWordModal');
+        
+        // Удаляем старые обработчики событий, если они есть
+        if (addWordModalElement._showHandler) {
+            addWordModalElement.removeEventListener('shown.bs.modal', addWordModalElement._showHandler);
+        }
+        
+        // Создаем обработчик события показа модального окна, чтобы установить фокус после открытия
+        addWordModalElement._showHandler = function() {
+            setTimeout(function() {
+                // Явно устанавливаем фокус на первое поле ввода после открытия модального окна
+                addWordTextElement.focus();
+                addWordTextElement.select();
+                
+                // Добавляем обработчик для перехода между полями с помощью Tab
+                function handleTabKey(e) {
+                    if (e.key === 'Tab') {
+                        // Позволяем стандартную навигацию по Tab внутри модального окна
+                        e.stopPropagation();
+                    }
+                }
+                
+                // Удаляем старый обработчик, если он есть
+                if (addWordModalElement._keyHandler) {
+                    addWordModalElement.removeEventListener('keydown', addWordModalElement._keyHandler);
+                }
+                
+                addWordModalElement._keyHandler = handleTabKey;
+                addWordModalElement.addEventListener('keydown', handleTabKey);
+            }, 100); // Небольшая задержка для надежности
+        };
+        
+        // Добавляем обработчик события показа модального окна
+        addWordModalElement.addEventListener('shown.bs.modal', addWordModalElement._showHandler);
+        
+        // Добавляем обработчик события закрытия модального окна, чтобы восстановить предыдущее
+        addWordModalElement.addEventListener('hidden.bs.modal', function() {
+            if (document.body.dataset.restoreEditTextModal === "true") {
+                const editTextModalInstance = new bootstrap.Modal(document.getElementById('editTextModal'));
+                editTextModalInstance.show();
+                document.body.removeAttribute('data-restore-edit-text-modal');
+            }
+        });
+        
+        // Инициализируем и показываем модальное окно
+        const addWordModal = new bootstrap.Modal(addWordModalElement, {
+            backdrop: 'static',
+            keyboard: true,
+            focus: true
+        });
+        
+        // Настраиваем обработчик для кнопки добавления один раз
+        const addButton = document.getElementById('addWordToVocabularyBtn');
+        addButton.onclick = function() {
             addWordToVocabulary();
         };
+        
+        // Показываем модальное окно
+        addWordModal.show();
     }
     
     // Функция для добавления слова в словарь
@@ -2165,8 +2387,17 @@
         highlightVocabularyWords();
         
         // Закрываем модальное окно
-        const modal = bootstrap.Modal.getInstance(document.getElementById('addWordModal'));
-        modal.hide();
+        const addWordModalElement = document.getElementById('addWordModal');
+        
+        // Используем Bootstrap Modal API для закрытия модального окна
+        const modal = bootstrap.Modal.getInstance(addWordModalElement);
+        if (modal) {
+            modal.hide();
+        } else {
+            // Если не удалось получить экземпляр, создаем его и закрываем
+            const newModal = new bootstrap.Modal(addWordModalElement);
+            newModal.hide();
+        }
     }
     
     // Функция для выделения слов из словаря в тексте
