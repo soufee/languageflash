@@ -9,9 +9,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.Objects;
 
 @Service
 @Slf4j
@@ -25,6 +27,9 @@ public class WordProgressService {
 
     @Autowired
     private WordService wordService;
+
+    @Autowired
+    private TextService textService;
 
     @Transactional
     public void initializeProgress(Long userId, List<Word> words) { // Оставляем List<Word>, так как это для основной программы
@@ -59,6 +64,7 @@ public class WordProgressService {
                 progress.setLearned(false);
                 progress.setLastReviewed(LocalDateTime.now());
                 progress.setNextReviewDate(LocalDateTime.now());
+                progress.setSource(WordSource.PROGRAM);
                 newProgressList.add(progress);
                 log.debug("Prepared new progress for userId: {}, word: {}, id: {}", userId, word.getWord(), word.getId());
             } else {
@@ -81,10 +87,10 @@ public class WordProgressService {
     }
 
     @Transactional
-    public WordProgress initializeSingleProgress(Long userId, Long wordId) {
-        log.info("Initializing single progress for userId: {}, wordId: {}", userId, wordId);
+    public WordProgress initializeSingleProgress(Long userId, Long wordId, WordSource source, Long textId) {
+        log.info("Initializing single progress for userId: {}, wordId: {}, source: {}, textId: {}", userId, wordId, source, textId);
         User user = userService.getUserById(userId);
-        AbstractWord word = wordService.getWordById(wordId); // Изменено с Word на AbstractWord
+        AbstractWord word = wordService.getWordById(wordId);
 
         Optional<WordProgress> existingProgress = wordProgressRepository.findByUserIdAndWordId(userId, wordId);
         if (existingProgress.isPresent()) {
@@ -99,8 +105,16 @@ public class WordProgressService {
         progress.setLearned(false);
         progress.setLastReviewed(LocalDateTime.now());
         progress.setNextReviewDate(LocalDateTime.now());
+        progress.setSource(source);
+        
+        if (textId != null && source == WordSource.TEXT) {
+            Text text = textService.getTextById(textId);
+            progress.setText(text);
+        }
+        
         WordProgress savedProgress = wordProgressRepository.save(progress);
-        log.info("Progress initialized for userId: {}, wordId: {}, knowledgeFactor: {}", userId, wordId, savedProgress.getKnowledgeFactor());
+        log.info("Progress initialized for userId: {}, wordId: {}, source: {}, knowledgeFactor: {}", 
+                userId, wordId, source, savedProgress.getKnowledgeFactor());
         return savedProgress;
     }
 
@@ -108,7 +122,7 @@ public class WordProgressService {
     public void updateProgress(Long userId, Long wordId, boolean knows) {
         log.info("Updating progress for userId: {}, wordId: {}, knows: {}", userId, wordId, knows);
         WordProgress progress = wordProgressRepository.findByUserIdAndWordId(userId, wordId)
-                .orElseGet(() -> initializeSingleProgress(userId, wordId));
+                .orElseGet(() -> initializeSingleProgress(userId, wordId, WordSource.PROGRAM, null));
 
         float currentFactor = progress.getKnowledgeFactor();
         if (knows) {
@@ -130,8 +144,10 @@ public class WordProgressService {
 
     public List<WordProgress> getActiveProgress(Long userId) {
         log.info("Retrieving active progress for userId: {}", userId);
-        List<WordProgress> progress = wordProgressRepository.findActiveByUserId(userId);
-        log.debug("Found {} active progress entries for userId: {}", progress.size(), userId);
+        List<WordProgress> progress = wordProgressRepository.findActiveByUserId(userId).stream()
+                .filter(wp -> wp.getSource() != WordSource.TEXT) // Исключаем слова из текстов
+                .collect(Collectors.toList());
+        log.debug("Found {} active progress entries for userId: {} (excluding TEXT source)", progress.size(), userId);
         return progress;
     }
 
@@ -175,6 +191,164 @@ public class WordProgressService {
                 .filter(wp -> wp.getWord() instanceof CustomWord)
                 .collect(Collectors.toList());
         log.debug("Found {} custom words progress entries for userId: {}", progress.size(), userId);
+        return progress;
+    }
+
+    @Transactional
+    public void initializeTextProgress(Long userId, Long textId) {
+        log.info("Initializing text progress for userId: {}, textId: {}", userId, textId);
+        
+        User user = userService.getUserById(userId);
+        if (user == null) {
+            log.error("User not found for userId: {}", userId);
+            throw new IllegalArgumentException("Пользователь не найден");
+        }
+        
+        Text text = textService.getTextById(textId);
+        if (text == null) {
+            log.error("Text not found for textId: {}", textId);
+            throw new IllegalArgumentException("Текст не найден");
+        }
+        
+        // Проверяем, есть ли уже слова из этого текста у пользователя
+        List<WordProgress> existingProgress = wordProgressRepository.findByUserIdAndSourceAndTextId(userId, WordSource.TEXT, textId);
+        if (!existingProgress.isEmpty()) {
+            log.info("Text words are already in progress for userId: {}, textId: {}", userId, textId);
+            return;
+        }
+        
+        // Получаем слова из текста
+        List<TextWord> textWords = text.getWords();
+        if (textWords == null || textWords.isEmpty()) {
+            log.warn("No words found in text with id: {}", textId);
+            throw new IllegalArgumentException("В тексте нет слов для изучения");
+        }
+        
+        List<WordProgress> newProgressList = new ArrayList<>();
+        for (TextWord word : textWords) {
+            WordProgress progress = new WordProgress();
+            progress.setUser(user);
+            progress.setWord(word);
+            progress.setKnowledgeFactor(1.0f);
+            progress.setLearned(false);
+            progress.setLastReviewed(LocalDateTime.now());
+            progress.setNextReviewDate(LocalDateTime.now());
+            progress.setSource(WordSource.TEXT);
+            progress.setText(text);
+            newProgressList.add(progress);
+            log.debug("Prepared new progress for userId: {}, word: {}, id: {}, from text: {}", 
+                    userId, word.getWord(), word.getId(), text.getTitle());
+        }
+        
+        if (!newProgressList.isEmpty()) {
+            try {
+                List<WordProgress> savedProgress = wordProgressRepository.saveAll(newProgressList);
+                log.info("Saved {} new progress records for userId: {} from text: {}", 
+                        savedProgress.size(), userId, text.getTitle());
+            } catch (Exception e) {
+                log.error("Failed to save progress for userId: {} from text: {}, error: {}", 
+                        userId, text.getTitle(), e.getMessage(), e);
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Получить прогресс по словам из текстов
+     */
+    public List<WordProgress> getTextProgress(Long userId) {
+        log.info("Getting text progress for userId: {}", userId);
+        try {
+            List<WordProgress> progress = wordProgressRepository.findByUserIdAndSource(userId, WordSource.TEXT);
+            log.info("Found {} text progress entries for userId: {}", progress != null ? progress.size() : 0, userId);
+            
+            if (progress == null) {
+                log.warn("getTextProgress returned null for userId: {}", userId);
+                return Collections.emptyList();
+            }
+            
+            // Проверяем корректность данных
+            for (WordProgress wp : progress) {
+                if (wp.getWord() == null) {
+                    log.warn("Word is null for wordProgress.id={}, userId={}", wp.getId(), userId);
+                }
+                if (wp.getText() == null) {
+                    log.warn("Text is null for wordProgress.id={}, userId={}, wordId={}", 
+                            wp.getId(), userId, wp.getWord() != null ? wp.getWord().getId() : "null");
+                }
+            }
+            
+            return progress;
+        } catch (Exception e) {
+            log.error("Error getting text progress for userId: {}: {}", userId, e.getMessage(), e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Получить прогресс по словам из конкретного текста
+     */
+    public List<WordProgress> getTextProgressByTextId(Long userId, Long textId) {
+        log.info("Getting text progress for userId: {} and textId: {}", userId, textId);
+        return wordProgressRepository.findByUserIdAndSourceAndTextId(userId, WordSource.TEXT, textId);
+    }
+
+    /**
+     * Получить список текстов, слова из которых изучает пользователь
+     */
+    public List<Text> getTextsWithWords(Long userId) {
+        log.info("Getting texts with words for userId: {}", userId);
+        try {
+            List<WordProgress> textProgress = getTextProgress(userId);
+            if (textProgress.isEmpty()) {
+                log.info("No text progress found for userId: {}", userId);
+                return Collections.emptyList();
+            }
+            
+            List<Text> texts = textProgress.stream()
+                    .map(WordProgress::getText)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .collect(Collectors.toList());
+            
+            log.info("Found {} distinct texts for userId: {}", texts.size(), userId);
+            for (Text text : texts) {
+                log.debug("Text: id={}, title={}", text.getId(), text.getTitle());
+            }
+            
+            return texts;
+        } catch (Exception e) {
+            log.error("Error getting texts with words for userId: {}: {}", userId, e.getMessage(), e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Получает активный прогресс по конкретному источнику для пользователя
+     * @param userId ID пользователя
+     * @param source Источник слов (PROGRAM, CUSTOM, TEXT)
+     * @return Список активных слов из указанного источника
+     */
+    public List<WordProgress> getActiveProgressBySource(Long userId, WordSource source) {
+        log.info("Retrieving active progress for userId: {} with source: {}", userId, source);
+        List<WordProgress> progress = wordProgressRepository.findActiveByUserId(userId).stream()
+                .filter(wp -> wp.getSource() == source)
+                .collect(Collectors.toList());
+        log.debug("Found {} active progress entries for userId: {} with source: {}", progress.size(), userId, source);
+        return progress;
+    }
+    
+    /**
+     * Получает активный прогресс для программы обучения (исключая слова из текстов)
+     * @param userId ID пользователя
+     * @return Список активных слов для программы обучения
+     */
+    public List<WordProgress> getActiveProgressForProgram(Long userId) {
+        log.info("Retrieving active progress for program for userId: {}", userId);
+        List<WordProgress> progress = wordProgressRepository.findActiveByUserId(userId).stream()
+                .filter(wp -> wp.getSource() != WordSource.TEXT)
+                .collect(Collectors.toList());
+        log.debug("Found {} active progress entries for program for userId: {}", progress.size(), userId);
         return progress;
     }
 }

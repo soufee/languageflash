@@ -1,5 +1,6 @@
 package ci.ashamaz.languageflash.model;
 
+import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,7 +11,10 @@ import javax.persistence.*;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -55,6 +59,7 @@ public class Text {
 
     private static final ObjectMapper mapper = new ObjectMapper();
 
+    @JsonGetter("tagsAsSet")
     public Set<Tag> getTagsAsSet() {
         if (tags == null || tags.isEmpty()) {
             return Collections.emptySet();
@@ -66,6 +71,33 @@ public class Text {
                     .collect(Collectors.toSet());
         } catch (IOException e) {
             return Collections.emptySet();
+        }
+    }
+
+    @JsonGetter("dtoTagsAsSet")
+    public List<Map<String, String>> getDTOTagsAsSet() {
+        if (tags == null || tags.isEmpty()) {
+            return Collections.emptyList();
+        }
+        try {
+            Set<String> tagNames = mapper.readValue(tags, new TypeReference<Set<String>>() {});
+            return tagNames.stream()
+                    .map(tagName -> {
+                        try {
+                            Tag tag = Tag.valueOf(tagName);
+                            Map<String, String> tagMap = new HashMap<>();
+                            tagMap.put("name", tag.name());
+                            tagMap.put("russianName", tag.getRussianName());
+                            tagMap.put("color", tag.getColor());
+                            return tagMap;
+                        } catch (Exception e) {
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            return Collections.emptyList();
         }
     }
 

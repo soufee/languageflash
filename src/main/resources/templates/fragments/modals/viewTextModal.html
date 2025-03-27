@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="viewTextModal" class="modal fade" id="viewTextModal" tabindex="-1" aria-labelledby="viewTextModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewTextModalLabel">
+                    <span id="viewTitle"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <!-- Левая колонка с информацией -->
+                    <div class="col-md-3 text-info-column">
+                        <div class="text-info-block">
+                            <!-- Группа: Язык, Уровень и Темы -->
+                            <div class="info-group mb-3">
+                                <div class="language-level mb-2">
+                                    <span id="viewLanguage" class="me-2"></span>
+                                    <span id="viewLevel"></span>
+                                </div>
+                                <div class="tags-container">
+                                    <h6>Темы:</h6>
+                                    <div id="viewTags" class="tags-list"></div>
+                                </div>
+                            </div>
+
+                            <!-- Группа: Слова из текста -->
+                            <div class="words-group">
+                                <h6>Слова из текста:</h6>
+                                <div id="viewWords" class="words-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Основная колонка с текстами -->
+                    <div class="col-md-9">
+                        <div class="row text-split-row">
+                            <div class="col-md-6">
+                                <div id="viewTextEn" class="text-content"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div id="viewTextRu" class="text-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .text-info-column {
+        border-right: 1px solid #dee2e6;
+        padding-right: 20px;
+        color: black;
+    }
+
+    .info-group {
+        background-color: #e6f7ff;
+        border: 1px solid #b8dfff;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .words-group {
+        background-color: #f5e6ff;
+        border: 1px solid #e6ccff;
+        border-radius: 8px;
+        padding: 12px;
+    }
+
+    .language-level {
+        font-size: 1.1em;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+    }
+
+    .tags-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 8px;
+    }
+
+    .tag-item {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.9em;
+        color: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+
+    .words-list {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 8px;
+    }
+
+    .word-item {
+        padding: 4px 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .word-item:last-child {
+        border-bottom: none;
+    }
+
+    .text-content {
+        margin-top: 0; /* Убираем верхний отступ для выравнивания */
+        line-height: 1.6;
+    }
+
+    [data-match-id] {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    [data-match-id]:hover {
+        background-color: #fff3cd;
+    }
+
+    .highlighted {
+        background-color: #fff3cd;
+        transition: background-color 0.2s ease;
+    }
+
+    #viewTextModal [data-match-id].highlighted {
+        background-color: #fff3cd !important;
+        transition: background-color 0.2s ease;
+    }
+
+    .text-content p {
+        margin-bottom: 1rem;
+    }
+
+    .text-content p:last-child {
+        margin-bottom: 0;
+    }
+
+    .text-info h6 {
+        color: #000;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Выравнивание колонок сверху */
+    .row {
+        display: flex;
+        align-items: flex-start; /* Выравниваем содержимое по верху */
+    }
+
+
+
+    .text-info-block {
+        margin-top: 0; /* Убираем возможный верхний отступ */
+    }
+
+    /* Стили для текста в модальном окне */
+    .text-content p {
+        margin: 0; /* Убираем стандартные отступы */
+        padding: 0; /* Убираем лишние внутренние отступы */
+    }
+
+    /* Убедимся, что .text-split-row не добавляет лишних отступов */
+    .text-split-row {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        margin-left: 0;
+        margin-right: 0;
+        align-items: flex-start; /* Выравнивание по верху */
+    }
+
+    .text-split-row .col-md-6 {
+        padding: 15px;
+        width: 48%;
+        margin: 0;
+        box-sizing: border-box; /* Учитываем padding в ширине */
+    }
+
+</style>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9270e30d4dd3bf90',t:'MTc0MzA5OTQ3MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();
+</script>
+</body>
+</html>

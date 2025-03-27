@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="textWordsModal" class="modal fade" id="textWordsModal" tabindex="-1" aria-labelledby="textWordsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="textWordsModalLabel">Слова из текстов</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="textWordsContainer">
+                    <div id="loadingIndicator" class="text-center" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <p class="mt-2">Загрузка данных...</p>
+                    </div>
+                    
+                    <div class="alert alert-info" id="noTextWordsMessage" style="display: none;">
+                        У вас еще нет слов из текстов. Перейдите в раздел текстов и нажмите кнопку "Взять в работу" у интересующего вас текста.
+                    </div>
+                    
+                    <div class="alert alert-danger" id="errorMessage" style="display: none;"></div>
+                    
+                    <div id="textWordsContent" style="display: none;">
+                        <div class="mb-3">
+                            <label for="textFilter" class="form-label">Фильтр по тексту:</label>
+                            <select class="form-select" id="textFilter" onchange="window.filterTextWords()">
+                                <option value="">Все тексты</option>
+                                <!-- Список текстов будет загружен динамически -->
+                            </select>
+                        </div>
+                        
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Слово</th>
+                                    <th>Перевод</th>
+                                    <th>Текст</th>
+                                    <th>Действие</th>
+                                </tr>
+                            </thead>
+                            <tbody id="textWordsList">
+                                <!-- Список слов будет загружен динамически -->
+                            </tbody>
+                        </table>
+                        
+                        <div class="mt-4 mb-3 d-flex justify-content-center">
+                            <button type="button" class="btn btn-primary me-2" onclick="studyTextWords()">
+                                Карточки
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="flashLearnTextWords()">
+                                Флеш-запоминание
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOMContentLoaded: Инициализация textWordsModal...');
+        
+        const textWordsModal = document.getElementById('textWordsModal');
+        if (textWordsModal) {
+            console.log('textWordsModal найден, добавляем обработчик события shown.bs.modal');
+            textWordsModal.addEventListener('shown.bs.modal', function() {
+                console.log('Событие shown.bs.modal сработало, вызываем loadTextWords()');
+                window.loadTextWords();
+            });
+        } else {
+            console.error('textWordsModal не найден в DOM!');
+        }
+    });
+    
+    // Эти функции определены во внешнем файле text-words.js:
+    // - loadTextWords()
+    // - displayTextWords()
+    // - filterTextWords()
+    // - markAsLearned()
+    
+    // Сохраняем локальные функции для обратной совместимости
+    function studyTextWords() {
+        const textId = document.getElementById('textFilter').value;
+        
+        // Закрываем текущее модальное окно
+        const textWordsModal = bootstrap.Modal.getInstance(document.getElementById('textWordsModal'));
+        textWordsModal.hide();
+        
+        // Формируем URL с параметрами
+        const url = textId ? `/learn/text-words?textId=${textId}` : '/learn/text-words';
+        
+        // Загружаем слова для изучения
+        fetch(url)
+            .then(response => response.json())
+            .then(words => {
+                if (words.length === 0) {
+                    alert('Нет слов для изучения');
+                    return;
+                }
+                
+                // Сохраняем слова в currentWords для использования в learnModal
+                window.currentWords = words.map(word => ({
+                    id: word.id,
+                    word: word.word,
+                    translation: word.translation,
+                    exampleSentence: word.exampleSentence,
+                    exampleTranslation: word.exampleTranslation,
+                    textTitle: word.textTitle
+                }));
+                
+                // Открываем модальное окно карточек
+                window.currentWords = shuffleArray(window.currentWords);
+                window.currentIndex = 0;
+                
+                setTimeout(() => {
+                    const learnModal = new bootstrap.Modal(document.getElementById('learnModal'));
+                    learnModal.show();
+                    showCardContent(); // Показываем первую карточку
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Ошибка при загрузке слов для изучения:', error);
+                alert('Ошибка при загрузке слов для изучения');
+            });
+    }
+    
+    function flashLearnTextWords() {
+        const textId = document.getElementById('textFilter').value;
+        
+        // Закрываем текущее модальное окно
+        const textWordsModal = bootstrap.Modal.getInstance(document.getElementById('textWordsModal'));
+        textWordsModal.hide();
+        
+        // Формируем URL с параметрами
+        const url = textId ? `/learn/text-words?textId=${textId}` : '/learn/text-words';
+        
+        // Загружаем слова для изучения
+        fetch(url)
+            .then(response => response.json())
+            .then(words => {
+                if (words.length === 0) {
+                    alert('Нет слов для изучения');
+                    return;
+                }
+                
+                // Сохраняем слова для использования в flashLearnModal
+                window.flashWords = words.map(word => ({
+                    id: word.id,
+                    word: word.word,
+                    translation: word.translation,
+                    exampleSentence: word.exampleSentence,
+                    exampleTranslation: word.exampleTranslation,
+                    textTitle: word.textTitle
+                }));
+                
+                // Открываем модальное окно флеш-запоминания
+                setTimeout(() => {
+                    const flashLearnModal = new bootstrap.Modal(document.getElementById('flashLearnModal'));
+                    flashLearnModal.show();
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Ошибка при загрузке слов для изучения:', error);
+                alert('Ошибка при загрузке слов для изучения');
+            });
+    }
+    
+    // Функция для перемешивания массива (для карточек)
+    function shuffleArray(array) {
+        const newArray = [...array];
+        for (let i = newArray.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+        }
+        return newArray;
+    }
+</script>
+</body>
+</html> 

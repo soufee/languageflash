@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Тестирование API - Language Flash</title>
+    <div th:replace="~{fragments/resources :: resources}"></div>
+    <style>
+        #results {
+            padding: 10px;
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 200px;
+            margin-top: 20px;
+            overflow: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .test-button {
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .info {
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/header :: header}"></div>
+
+<section class="content-section">
+    <div class="container">
+        <h1>Тестирование API</h1>
+        
+        <div class="mb-4">
+            <h2>Тесты для слов из текстов</h2>
+            <button id="testTextWordsCount" class="btn btn-primary test-button">Проверить количество</button>
+            <button id="testTextWords" class="btn btn-success test-button">Проверить слова</button>
+            <button id="testOpenModal" class="btn btn-warning test-button">Открыть модальное окно</button>
+            <button id="clearResults" class="btn btn-secondary test-button">Очистить результаты</button>
+        </div>
+        
+        <div id="results">Результаты тестов будут отображены здесь</div>
+    </div>
+</section>
+
+<div class="modal fade" id="textWordsModal" tabindex="-1" aria-labelledby="textWordsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="textWordsModalLabel">Слова из текстов (Тест)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="loadingIndicator" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-2">Загрузка данных...</p>
+                </div>
+                <div id="modalResults" style="margin-top: 20px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const resultsDiv = document.getElementById('results');
+        const modalResultsDiv = document.getElementById('modalResults');
+        
+        // Функция для добавления результатов в div
+        function addResult(message, type = '') {
+            const now = new Date();
+            const time = now.toTimeString().split(' ')[0];
+            const line = document.createElement('div');
+            line.className = type;
+            line.textContent = `[${time}] ${message}`;
+            resultsDiv.appendChild(line);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+        
+        // Очистка результатов
+        document.getElementById('clearResults').addEventListener('click', function() {
+            resultsDiv.innerHTML = '';
+            addResult('Результаты очищены', 'info');
+        });
+        
+        // Тест получения количества слов из текстов
+        document.getElementById('testTextWordsCount').addEventListener('click', function() {
+            addResult('Тест: Получение количества слов из текстов', 'info');
+            
+            fetch('/dashboard/text-words-count')
+                .then(response => {
+                    addResult(`Статус ответа: ${response.status}`);
+                    if (!response.ok) {
+                        throw new Error(`Ошибка HTTP: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    addResult(`Количество слов из текстов: ${data.count}`, 'success');
+                    addResult(`Полный ответ: ${JSON.stringify(data)}`);
+                })
+                .catch(error => {
+                    addResult(`Ошибка: ${error.message}`, 'error');
+                });
+        });
+        
+        // Тест получения слов из текстов
+        document.getElementById('testTextWords').addEventListener('click', function() {
+            addResult('Тест: Получение слов из текстов', 'info');
+            
+            // Добавляем метку времени для предотвращения кэширования
+            const url = '/dashboard/text-words?_=' + new Date().getTime();
+            addResult(`URL запроса: ${url}`);
+            
+            fetch(url)
+                .then(response => {
+                    addResult(`Статус ответа: ${response.status}`);
+                    
+                    // Проверяем заголовки
+                    let headersText = '';
+                    for (let [key, value] of response.headers.entries()) {
+                        headersText += `${key}: ${value}\n`;
+                    }
+                    addResult(`Заголовки ответа:\n${headersText}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Ошибка HTTP: ${response.status}`);
+                    }
+                    
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        addResult(`Ошибка в ответе API: ${data.error}`, 'error');
+                    }
+                    
+                    const words = data.words || [];
+                    const texts = data.texts || [];
+                    
+                    addResult(`Количество слов: ${words.length}`, 'success');
+                    addResult(`Количество текстов: ${texts.length}`, 'success');
+                    
+                    // Вывод информации о первых 5 словах (если есть)
+                    if (words.length > 0) {
+                        addResult('Примеры слов:');
+                        words.slice(0, 5).forEach((word, index) => {
+                            addResult(`${index + 1}. ${word.word} - ${word.translation} (из текста: ${word.textTitle || 'Неизвестно'})`);
+                        });
+                    }
+                    
+                    // Вывод информации о текстах (если есть)
+                    if (texts.length > 0) {
+                        addResult('Тексты:');
+                        texts.forEach((text, index) => {
+                            addResult(`${index + 1}. ${text.title} (${text.language}, уровень: ${text.level})`);
+                        });
+                    }
+                    
+                    // Проверка структуры данных
+                    addResult(`Структура ответа API: ${Object.keys(data)}`);
+                })
+                .catch(error => {
+                    addResult(`Ошибка: ${error.message}`, 'error');
+                });
+        });
+        
+        // Тест открытия модального окна
+        document.getElementById('testOpenModal').addEventListener('click', function() {
+            addResult('Тест: Открытие модального окна', 'info');
+            
+            const textWordsModal = document.getElementById('textWordsModal');
+            const modalInstance = new bootstrap.Modal(textWordsModal);
+            
+            // Очищаем предыдущие результаты
+            modalResultsDiv.innerHTML = '';
+            
+            // Функция для добавления результатов в модальное окно
+            function addModalResult(message, type = '') {
+                const line = document.createElement('div');
+                line.className = type;
+                line.textContent = message;
+                modalResultsDiv.appendChild(line);
+            }
+            
+            // Показываем модальное окно
+            modalInstance.show();
+            
+            // После открытия модального окна выполняем запрос
+            textWordsModal.addEventListener('shown.bs.modal', function onceShown() {
+                addResult('Модальное окно открыто', 'success');
+                
+                // Выполняем запрос к API
+                const url = '/dashboard/text-words?_=' + new Date().getTime();
+                addModalResult(`Загрузка данных из ${url}...`, 'info');
+                
+                fetch(url)
+                    .then(response => {
+                        addModalResult(`Статус ответа: ${response.status}`);
+                        if (!response.ok) {
+                            throw new Error(`Ошибка HTTP: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        const words = data.words || [];
+                        const texts = data.texts || [];
+                        
+                        document.getElementById('loadingIndicator').style.display = 'none';
+                        
+                        addModalResult(`Получено ${words.length} слов и ${texts.length} текстов`, 'success');
+                        
+                        // Создаем таблицу для отображения слов
+                        if (words.length > 0) {
+                            const table = document.createElement('table');
+                            table.className = 'table table-striped';
+                            
+                            // Заголовок таблицы
+                            const thead = document.createElement('thead');
+                            thead.innerHTML = `
+                                <tr>
+                                    <th>Слово</th>
+                                    <th>Перевод</th>
+                                    <th>Текст</th>
+                                </tr>
+                            `;
+                            table.appendChild(thead);
+                            
+                            // Тело таблицы
+                            const tbody = document.createElement('tbody');
+                            words.forEach(word => {
+                                const row = document.createElement('tr');
+                                row.innerHTML = `
+                                    <td>${word.word}</td>
+                                    <td>${word.translation}</td>
+                                    <td>${word.textTitle || 'Неизвестно'}</td>
+                                `;
+                                tbody.appendChild(row);
+                            });
+                            table.appendChild(tbody);
+                            
+                            modalResultsDiv.appendChild(table);
+                        } else {
+                            addModalResult('Нет слов для отображения', 'info');
+                        }
+                    })
+                    .catch(error => {
+                        document.getElementById('loadingIndicator').style.display = 'none';
+                        addModalResult(`Ошибка: ${error.message}`, 'error');
+                    });
+                
+                // Удаляем обработчик после первого срабатывания
+                textWordsModal.removeEventListener('shown.bs.modal', onceShown);
+            });
+        });
+    });
+</script>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html> 

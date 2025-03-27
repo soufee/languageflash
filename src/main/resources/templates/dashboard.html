@@ -34,8 +34,8 @@
             <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#activeWordsModal">
                 Посмотреть активные слова
             </button>
-            <a href="#" class="btn btn-primary" th:classappend="${settings['language'] == null ? 'disabled' : ''}"
-               onclick="initLearnModal()" data-bs-toggle="modal" data-bs-target="#learnModal">Карточки</a>
+            <button type="button" class="btn btn-primary" th:classappend="${settings['language'] == null ? 'disabled' : ''}"
+               onclick="initLearnModal()">Карточки</button>
             <a href="#" class="btn btn-secondary ms-2" th:classappend="${settings['language'] == null ? 'disabled' : ''}"
                data-bs-toggle="modal" data-bs-target="#flashLearnModal">Флеш-запоминание</a>
         </div>
@@ -44,7 +44,6 @@
             <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#learnedWordsModal">
                 Посмотреть выученные слова
             </button>
-
         </div>
 
         <!-- Мой словарь -->
@@ -54,6 +53,16 @@
             <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#customWordsModal">
                 Посмотреть слова
             </button>
+        </div>
+
+        <!-- Словари из текстов -->
+        <div class="mb-4">
+            <h3>Слова из текстов</h3>
+            <p>Слов из текстов: <span id="textWordsCount">0</span></p>
+            <button type="button" class="btn btn-warning btn-sm" id="testModalBtn" onclick="openTextWordsModal()">
+                Посмотреть слова
+            </button>
+            <small id="textWordsLoadStatus" style="display: block; margin-top: 5px;"></small>
         </div>
     </div>
 </section>
@@ -66,6 +75,63 @@
 <div th:replace="~{fragments/modals/flashLearnModal :: flashLearnModal}"></div>
 <div th:replace="~{fragments/modals/addTagsModal :: addTagsModal}"></div>
 <div th:replace="~{fragments/modals/customWordsModal :: customWordsModal}"></div>
+<div th:replace="~{fragments/modals/textWordsModal :: textWordsModal}"></div>
+
+<script>
+    function openTextWordsModal() {
+        console.log('Открываем модальное окно программно...');
+        document.getElementById('textWordsLoadStatus').textContent = 'Программное открытие...';
+        
+        const textWordsModal = document.getElementById('textWordsModal');
+        if (textWordsModal) {
+            try {
+                // Проверяем наличие Bootstrap
+                if (typeof bootstrap !== 'undefined') {
+                    console.log('Bootstrap определен, пытаемся открыть модальное окно...');
+                    const bsModal = new bootstrap.Modal(textWordsModal);
+                    bsModal.show();
+                    
+                    // Программно вызываем loadTextWords, так как событие может не сработать
+                    console.log('Программно вызываем loadTextWords...');
+                    setTimeout(() => {
+                        // Проверяем наличие функции в глобальном контексте
+                        if (typeof window.loadTextWords === 'function') {
+                            console.log('Функция window.loadTextWords найдена, вызываем...');
+                            window.loadTextWords();
+                            
+                            // Принудительно показываем индикатор загрузки
+                            const loadingIndicator = document.getElementById('loadingIndicator');
+                            if (loadingIndicator) {
+                                console.log('Показываем индикатор загрузки');
+                                loadingIndicator.style.display = 'block';
+                            }
+                        } else if (typeof loadTextWords === 'function') {
+                            // Запасной вариант - проверяем локальную функцию
+                            console.log('Функция локальная loadTextWords найдена, вызываем...');
+                            loadTextWords();
+                        } else {
+                            // Если функция не найдена ни в какой области видимости
+                            console.error('Функция loadTextWords не определена ни глобально, ни локально!');
+                            document.getElementById('textWordsLoadStatus').textContent = 'Ошибка: функция loadTextWords не найдена';
+                            
+                            // Аварийный сценарий - перенаправление на отладочную страницу
+                            window.location.href = '/debug/text-words';
+                        }
+                    }, 300);
+                } else {
+                    console.error('Bootstrap не определен!');
+                    document.getElementById('textWordsLoadStatus').textContent = 'Ошибка: Bootstrap не найден';
+                }
+            } catch (error) {
+                console.error('Ошибка при открытии модального окна:', error);
+                document.getElementById('textWordsLoadStatus').textContent = 'Ошибка: ' + error.message;
+            }
+        } else {
+            console.error('Модальное окно #textWordsModal не найдено!');
+            document.getElementById('textWordsLoadStatus').textContent = 'Ошибка: модальное окно не найдено';
+        }
+    }
+</script>
 
 <div th:replace="~{fragments/footer :: footer}"></div>
 </body>

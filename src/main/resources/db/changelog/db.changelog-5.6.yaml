@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 5.6.0
+      author: system
+      changes:
+        - createIndex:
+            tableName: word_progress
+            indexName: idx_word_progress_source
+            columns:
+              - column:
+                  name: source
+            remarks: 'Индекс для быстрого поиска слов по источнику'
+        - createIndex:
+            tableName: word_progress
+            indexName: idx_word_progress_user_source
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: source
+            remarks: 'Индекс для быстрого поиска слов по пользователю и источнику' 

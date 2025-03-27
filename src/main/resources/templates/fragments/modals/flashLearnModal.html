@@ -6,7 +6,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body d-flex justify-content-center align-items-center" style="min-height: 80vh; position: relative;">
-                <div id="flashSettings" th:unless="${activeWords == null or activeWords.isEmpty()}">
+                <div id="flashSettings">
                     <div class="mb-3">
                         <label for="flashSpeed" class="form-label">Скорость (слов в секунду):</label>
                         <input type="range" class="form-range" id="flashSpeed" min="1" max="10" value="7" step="1" oninput="document.getElementById('speedValue').textContent = this.value">
@@ -31,7 +31,6 @@
                     <h3>Сессия закончилась. Перейдите в режим карточек</h3>
                     <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="openLearnModal()">Перейти</button>
                 </div>
-                <p th:if="${activeWords == null or activeWords.isEmpty()}">Нет слов для флеш-запоминания.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>

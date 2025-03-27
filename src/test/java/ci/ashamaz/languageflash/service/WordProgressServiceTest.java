@@ -123,7 +123,7 @@ class WordProgressServiceTest {
         expectedProgress.setNextReviewDate(LocalDateTime.now());
         when(wordProgressRepository.save(any(WordProgress.class))).thenReturn(expectedProgress);
 
-        WordProgress result = wordProgressService.initializeSingleProgress(userId, wordId);
+        WordProgress result = wordProgressService.initializeSingleProgress(userId, wordId, WordSource.PROGRAM, null);
 
         assertNotNull(result);
         assertEquals(userId, result.getUser().getId());
@@ -141,7 +141,7 @@ class WordProgressServiceTest {
         existingProgress.setKnowledgeFactor(0.5f);
         when(wordProgressRepository.findByUserIdAndWordId(userId, wordId)).thenReturn(Optional.of(existingProgress));
 
-        WordProgress result = wordProgressService.initializeSingleProgress(userId, wordId);
+        WordProgress result = wordProgressService.initializeSingleProgress(userId, wordId, WordSource.PROGRAM, null);
 
         assertEquals(existingProgress, result);
         assertEquals(0.5f, result.getKnowledgeFactor());

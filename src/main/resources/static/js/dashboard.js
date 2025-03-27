@@ -1,3 +1,29 @@
+// Функция для получения количества слов из текстов
+function fetchTextWordsCount() {
+    fetch('/dashboard/text-words-count')
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 401) {
+                    return { count: 0 };
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const countElement = document.getElementById('textWordsCount');
+            if (countElement) {
+                countElement.textContent = data.count;
+            }
+        })
+        .catch(error => {
+            const countElement = document.getElementById('textWordsCount');
+            if (countElement) {
+                countElement.textContent = '0';
+            }
+        });
+}
+
 function updateDashboardCounts() {
     fetch('/dashboard/active-words-json')
         .then(response => response.text())
@@ -5,7 +31,6 @@ function updateDashboardCounts() {
             const activeWords = JSON.parse(data);
             const activeCount = activeWords.length;
             document.getElementById('activeWordsCount').textContent = activeCount;
-            console.log('Updated active words count:', activeCount);
 
             fetch('/dashboard/learned-words-json', {
                 method: 'GET',
@@ -18,21 +43,32 @@ function updateDashboardCounts() {
                     const learnedWords = JSON.parse(data);
                     const learnedCount = learnedWords.length;
                     document.getElementById('learnedWordsCount').textContent = learnedCount;
-                    console.log('Updated learned words count:', learnedCount);
 
                     fetch('/dashboard/custom-words')
                         .then(response => response.json())
                         .then(customWords => {
                             document.getElementById('customWordsCount').textContent = customWords.length;
-                            console.log('Updated custom words count:', customWords.length);
                         });
                 })
-                .catch(error => console.error('Ошибка загрузки выученных слов:', error));
+                .catch(error => {});
         })
-        .catch(error => console.error('Ошибка загрузки активных слов:', error));
+        .catch(error => {});
 }
 
 function loadCustomWords() {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const tbody = document.getElementById('customWordsBody');
+    const noWordsMessage = document.getElementById('noCustomWords');
+    
+    // Показываем индикатор загрузки
+    if (loadingIndicator) {
+        loadingIndicator.classList.remove('d-none');
+    }
+    
+    // Очищаем предыдущие данные
+    tbody.innerHTML = '';
+    noWordsMessage.style.display = 'none';
+    
     fetch('/dashboard/custom-words')
         .then(response => {
             if (!response.ok) {
@@ -41,10 +77,6 @@ function loadCustomWords() {
             return response.json();
         })
         .then(words => {
-            const tbody = document.getElementById('customWordsBody');
-            const noWordsMessage = document.getElementById('noCustomWords');
-            tbody.innerHTML = '';
-
             if (words.length === 0) {
                 noWordsMessage.style.display = 'block';
             } else {
@@ -60,8 +92,14 @@ function loadCustomWords() {
             }
         })
         .catch(error => {
-            console.error('Ошибка:', error);
-            document.getElementById('customWordsBody').innerHTML = '<tr><td colspan="2">Ошибка загрузки слов</td></tr>';
+            console.error('Ошибка загрузки слов:', error);
+            tbody.innerHTML = '<tr><td colspan="2" class="text-center text-danger">Ошибка загрузки слов</td></tr>';
+        })
+        .finally(() => {
+            // Скрываем индикатор загрузки
+            if (loadingIndicator) {
+                loadingIndicator.classList.add('d-none');
+            }
         });
 }
 
@@ -73,10 +111,21 @@ function showAddCustomWordForm() {
     document.getElementById('customExampleTranslation').value = '';
     document.getElementById('customWordWarning').style.display = 'none';
     document.getElementById('saveCustomWordButton').disabled = true;
+    
+    setTimeout(() => {
+        document.getElementById('customWord').focus();
+    }, 100);
 }
 
 function hideAddCustomWordForm() {
     document.getElementById('addCustomWordForm').style.display = 'none';
+}
+
+function checkSaveButtonState() {
+    const word = document.getElementById('customWord').value.trim();
+    const translation = document.getElementById('customTranslation').value.trim();
+    const saveButton = document.getElementById('saveCustomWordButton');
+    saveButton.disabled = !(word && translation);
 }
 
 function checkAutocomplete() {
@@ -91,26 +140,31 @@ function checkAutocomplete() {
         return;
     }
 
-    fetch('/dashboard/custom-words/check-autocomplete', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ word: word })
-    })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Autocomplete response:', data);
-            if (data.status === 'autocomplete') {
-                document.getElementById('customTranslation').value = data.translation || '';
-                document.getElementById('customExample').value = data.exampleSentence || '';
-                document.getElementById('customExampleTranslation').value = data.exampleTranslation || '';
-                saveButton.disabled = !document.getElementById('customTranslation').value.trim();
-            }
+    if (checkAutocomplete.timer) {
+        clearTimeout(checkAutocomplete.timer);
+    }
+
+    checkSaveButtonState();
+
+    checkAutocomplete.timer = setTimeout(() => {
+        fetch('/dashboard/custom-words/check-autocomplete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ word: word })
         })
-        .catch(error => {
-            console.error('Ошибка автокомплита:', error);
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'autocomplete') {
+                    document.getElementById('customTranslation').value = data.translation || '';
+                    document.getElementById('customExample').value = data.exampleSentence || '';
+                    document.getElementById('customExampleTranslation').value = data.exampleTranslation || '';
+                    checkSaveButtonState();
+                }
+            })
+            .catch(error => {});
+    }, 300);
 }
 
 function checkDuplicates() {
@@ -123,40 +177,47 @@ function checkDuplicates() {
     saveButton.disabled = true;
 
     if (!word || !translation) {
+        checkSaveButtonState();
         return;
     }
 
-    fetch('/dashboard/custom-words/check-duplicates', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ word: word, translation: translation })
-    })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Duplicates response:', data);
-            if (data.status === 'error') {
+    if (checkDuplicates.timer) {
+        clearTimeout(checkDuplicates.timer);
+    }
+
+    checkSaveButtonState();
+
+    checkDuplicates.timer = setTimeout(() => {
+        fetch('/dashboard/custom-words/check-duplicates', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ word: word, translation: translation })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'error') {
+                    warningDiv.className = 'alert alert-danger';
+                    warningDiv.textContent = data.message;
+                    warningDiv.style.display = 'block';
+                    saveButton.disabled = true;
+                } else if (data.status === 'warning') {
+                    warningDiv.className = 'alert alert-warning';
+                    warningDiv.textContent = data.message;
+                    warningDiv.style.display = 'block';
+                    saveButton.disabled = false;
+                } else {
+                    checkSaveButtonState();
+                }
+            })
+            .catch(error => {
                 warningDiv.className = 'alert alert-danger';
-                warningDiv.textContent = data.message;
+                warningDiv.textContent = 'Ошибка при проверке дубликатов';
                 warningDiv.style.display = 'block';
                 saveButton.disabled = true;
-            } else if (data.status === 'warning') {
-                warningDiv.className = 'alert alert-warning';
-                warningDiv.textContent = data.message;
-                warningDiv.style.display = 'block';
-                saveButton.disabled = false;
-            } else {
-                saveButton.disabled = false;
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка проверки дубликатов:', error);
-            warningDiv.className = 'alert alert-danger';
-            warningDiv.textContent = 'Ошибка при проверке дубликатов';
-            warningDiv.style.display = 'block';
-            saveButton.disabled = true;
-        });
+            });
+    }, 300);
 }
 
 function saveCustomWord() {
@@ -224,30 +285,32 @@ function saveCustomWord() {
         });
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    initProgramModal();
-    initFlashLearnModal();
-    const showTagPrompt = /*[[${showTagPrompt != null ? showTagPrompt : false}]]*/ false;
-    if (showTagPrompt) {
-        const addTagsModal = new bootstrap.Modal(document.getElementById('addTagsModal'));
-        const modalBody = document.getElementById('addTagsModal').querySelector('.modal-body');
-        const activeWordsCount = /*[[${progressCount}]]*/ 0;
-        const targetWordsCount = /*[[${settings['activeWordsCount'] ?: 50}]]*/ 50;
-        const prompt = document.createElement('p');
-        prompt.className = 'prompt-message';
-        prompt.innerHTML = `Для вашей программы найдено только ${activeWordsCount} слов. Чтобы начать обучение, нужно как минимум ${targetWordsCount} слов. Пожалуйста, выберите дополнительные темы:`;
-        modalBody.insertBefore(prompt, modalBody.querySelector('form'));
-        addTagsModal.show();
-    }
+function checkCustomWord() {
+    checkAutocomplete();
+}
 
-    const customWordsModal = document.getElementById('customWordsModal');
-    if (customWordsModal) {
-        customWordsModal.addEventListener('shown.bs.modal', function () {
-            loadCustomWords();
+document.addEventListener('DOMContentLoaded', function() {
+    // Загружаем количество слов из текстов
+    fetchTextWordsCount();
+    
+    // Исправление проблемы с aria-hidden и фокусом при закрытии модальных окон
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        // Обработчик закрытия модального окна
+        modal.addEventListener('hidden.bs.modal', function () {
+            if (document.activeElement && modal.contains(document.activeElement)) {
+                document.activeElement.blur();
+            }
+            setTimeout(() => {
+                document.body.focus();
+            }, 10);
         });
-    }
 
-    // Добавляем слушатели blur
-    document.getElementById('customWord').addEventListener('blur', checkAutocomplete);
-    document.getElementById('customTranslation').addEventListener('blur', checkDuplicates);
+        // Обработчик показа модального окна
+        modal.addEventListener('show.bs.modal', function () {
+            if (this.id === 'customWordsModal') {
+                loadCustomWords();
+            }
+        });
+    });
 });

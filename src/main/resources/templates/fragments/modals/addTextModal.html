@@ -1,0 +1,41 @@
+<div th:fragment="addTextModal" class="modal fade" id="addTextModal" tabindex="-1" aria-labelledby="addTextModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTextModalLabel">Добавить новый текст</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addTextForm" th:action="@{/texts/add}" method="post">
+                    <div class="mb-3">
+                        <label for="titleEn" class="form-label">Заголовок (англ.)</label>
+                        <input type="text" class="form-control" id="titleEn" name="titleEn" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="titleRu" class="form-label">Заголовок (рус.)</label>
+                        <input type="text" class="form-control" id="titleRu" name="titleRu" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="textEn" class="form-label">Текст (англ.)</label>
+                        <textarea class="form-control" id="textEn" name="textEn" rows="10" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="textRu" class="form-label">Текст (рус.)</label>
+                        <textarea class="form-control" id="textRu" name="textRu" rows="10" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="topic" class="form-label">Тема</label>
+                        <select class="form-select" id="topic" name="topic" required>
+                            <option value="">Выберите тему</option>
+                            <option th:each="topic : ${topics}" th:value="${topic.id}" th:text="${topic.name}">Тема</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" form="addTextForm" class="btn btn-primary">Добавить</button>
+            </div>
+        </div>
+    </div>
+</div> 

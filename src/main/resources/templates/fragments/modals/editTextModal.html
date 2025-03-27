@@ -1,0 +1,38 @@
+<div th:fragment="editTextModal" class="modal fade" id="editTextModal" tabindex="-1" aria-labelledby="editTextModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editTextModalLabel">Редактировать текст</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editTextForm" th:action="@{/texts/edit}" method="post">
+                    <input type="hidden" id="editId" name="id">
+                    <div class="mb-3">
+                        <label for="editTitle" class="form-label">Заголовок</label>
+                        <input type="text" class="form-control" id="editTitle" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editContent" class="form-label">Текст</label>
+                        <textarea class="form-control" id="editContent" name="content" rows="10" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTranslation" class="form-label">Перевод</label>
+                        <textarea class="form-control" id="editTranslation" name="translation" rows="10" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTopic" class="form-label">Тема</label>
+                        <select class="form-select" id="editTopic" name="topic" required>
+                            <option value="">Выберите тему</option>
+                            <option th:each="topic : ${topics}" th:value="${topic.id}" th:text="${topic.name}">Тема</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" form="editTextForm" class="btn btn-primary">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div> 

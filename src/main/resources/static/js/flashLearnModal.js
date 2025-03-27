@@ -77,16 +77,40 @@ function stopFlashSession(end = false) {
 
 function openLearnModal() {
     const flashModal = bootstrap.Modal.getInstance(document.getElementById('flashLearnModal'));
-    flashModal.hide();
-    const learnModal = new bootstrap.Modal(document.getElementById('learnModal'));
-    learnModal.show();
+    if (flashModal) flashModal.hide();
+    
+    const learnModal = document.getElementById('learnModal');
+    if (learnModal) {
+        const learnModalInstance = new bootstrap.Modal(learnModal);
+        learnModalInstance.show();
+    } else {
+        console.warn('learnModal не найден в DOM');
+    }
 }
 
 function initFlashLearnModal() {
     const flashModal = document.getElementById('flashLearnModal');
+    if (!flashModal) {
+        console.warn('flashLearnModal не найден в DOM');
+        return;
+    }
+    
     flashModal.addEventListener('show.bs.modal', function () {
-        if (flashWords.length === 0) {
-            loadFlashWords();
-        }
+        console.log('FlashLearnModal: открытие модального окна');
+        loadFlashWords(() => {
+            console.log('FlashLearnModal: слова загружены');
+            if (flashWords.length === 0) {
+                document.getElementById('flashSettings').innerHTML = '<p class="text-danger">Нет слов для флеш-запоминания.</p>';
+            }
+        });
     });
 }
+
+// Обертка вызова инициализации через modalWrapper
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        initFlashLearnModal();
+    } catch (error) {
+        console.error('Ошибка при инициализации flashLearnModal:', error);
+    }
+});

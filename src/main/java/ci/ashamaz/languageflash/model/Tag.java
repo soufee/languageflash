@@ -1,5 +1,8 @@
 package ci.ashamaz.languageflash.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
+@JsonFormat(shape = JsonFormat.Shape.OBJECT)
 public enum Tag {
     IRREGULAR_VERBS("Неправильные глаголы", null, "#FF6F61"),
     REGULAR_VERBS("Правильные глаголы", null, "#4CAF50"),

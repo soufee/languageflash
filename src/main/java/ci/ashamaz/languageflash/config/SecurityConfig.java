@@ -18,7 +18,10 @@ public class SecurityConfig {
                         authorizeRequests
                                 .antMatchers("/admin/**").hasRole("ADMIN")
                                 .antMatchers("/", "/css/**", "/js/**", "/auth/register", "/auth/reset-password/**",
-                                        "/auth/confirm-email", "/texts/**").permitAll()
+                                        "/auth/confirm-email").permitAll()
+                                .antMatchers("/texts").permitAll()
+                                .antMatchers("/texts/add", "/texts/edit", "/texts/delete/**").hasRole("ADMIN")
+                                .antMatchers("/texts/{id}").permitAll()
                                 .anyRequest().authenticated()
                 )
                 .formLogin()

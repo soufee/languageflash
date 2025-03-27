@@ -4,6 +4,7 @@ import ci.ashamaz.languageflash.model.*;
 import ci.ashamaz.languageflash.service.LanguageService;
 import ci.ashamaz.languageflash.service.TextService;
 import ci.ashamaz.languageflash.service.UserService;
+import ci.ashamaz.languageflash.service.WordProgressService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -20,6 +21,7 @@ import javax.servlet.http.HttpSession;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.HashMap;
 
 @Controller
 @Slf4j
@@ -34,6 +36,9 @@ public class TextController extends CommonControllerUtil {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private WordProgressService wordProgressService;
+
 
     @GetMapping("/texts")
     public String texts(HttpSession session, Model model,
@@ -45,13 +50,16 @@ public class TextController extends CommonControllerUtil {
         User user = (User) session.getAttribute("user");
 
         String defaultLanguage = "English";
+        Map<String, Object> settings = new HashMap<>();
         if (user != null) {
-            Map<String, Object> settings = userService.getSettings(user.getId());
+            settings = userService.getSettings(user.getId());
             String programLanguage = (String) settings.get("language");
             defaultLanguage = programLanguage != null ? programLanguage : defaultLanguage;
         }
         String activeLanguage = selectedLanguage != null ? selectedLanguage : defaultLanguage;
 
+        model.addAttribute("settings", settings);
+        
         List<Language> activeLanguages = languageService.getAllLanguages().stream()
                 .filter(Language::isActive)
                 .collect(Collectors.toList());
@@ -59,7 +67,15 @@ public class TextController extends CommonControllerUtil {
         model.addAttribute("selectedLanguage", activeLanguage);
 
         model.addAttribute("tags", Tag.values());
-        model.addAttribute("selectedTag", selectedTag);
+        Tag currentTag = null;
+        if (selectedTag != null) {
+            try {
+                currentTag = Tag.valueOf(selectedTag);
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid tag value: {}", selectedTag);
+            }
+        }
+        model.addAttribute("currentTag", currentTag);
 
         Pageable pageable = PageRequest.of(page, size);
         Page<Text> textPage = selectedTag != null
@@ -205,5 +221,40 @@ public class TextController extends CommonControllerUtil {
         log.info("Soft deleting text: {}", textId);
         textService.softDeleteText(textId);
         return Map.of("status", "success");
+    }
+
+    @PostMapping("/text/take-to-work")
+    @ResponseBody
+    public Map<String, Object> takeTextToWork(@RequestBody Map<String, Long> requestBody, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        Map<String, Object> response = new HashMap<>();
+        
+        if (user == null) {
+            response.put("status", "error");
+            response.put("message", "Пользователь не авторизован");
+            return response;
+        }
+        
+        Long textId = requestBody.get("textId");
+        if (textId == null) {
+            response.put("status", "error");
+            response.put("message", "Идентификатор текста не указан");
+            return response;
+        }
+        
+        try {
+            Text text = textService.getTextById(textId);
+            wordProgressService.initializeTextProgress(user.getId(), textId);
+            
+            response.put("status", "success");
+            response.put("wordCount", text.getWords().size());
+            log.info("Text {} taken to work by user {}", text.getTitle(), user.getEmail());
+        } catch (Exception e) {
+            log.error("Error taking text to work: {}", e.getMessage(), e);
+            response.put("status", "error");
+            response.put("message", "Ошибка при взятии текста в работу: " + e.getMessage());
+        }
+        
+        return response;
     }
 }

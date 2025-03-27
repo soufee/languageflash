@@ -98,12 +98,17 @@ function refillActiveWords() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    const modalElement = document.getElementById('activeWordsModal');
-    if (modalElement) {
-        modalElement.addEventListener('shown.bs.modal', function () {
-            loadActiveWords();
-        });
-    } else {
-        console.error("Элемент #activeWordsModal не найден в DOM");
+    try {
+        const modalElement = document.getElementById('activeWordsModal');
+        if (modalElement) {
+            console.log('ActiveWordsModal: инициализация модального окна');
+            modalElement.addEventListener('shown.bs.modal', function () {
+                loadActiveWords();
+            });
+        } else {
+            console.log("ActiveWordsModal: элемент #activeWordsModal не найден в DOM");
+        }
+    } catch (error) {
+        console.error('Ошибка при инициализации activeWordsModal:', error);
     }
 });

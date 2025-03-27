@@ -3,8 +3,32 @@ let currentIndex = 0;
 let learnModalInstance = null;
 let isTranslationVisible = false;
 let isExampleVisible = false;
+let isInitialized = false;
 
 function initLearnModal() {
+    if (isInitialized) {
+        console.log('LearnModal: уже инициализирован, пропускаем повторную инициализацию');
+        return;
+    }
+
+    // Получаем экземпляр модального окна
+    const modalEl = document.getElementById('learnModal');
+    if (!modalEl) {
+        console.error('LearnModal: элемент #learnModal не найден');
+        return;
+    }
+
+    // Если модальное окно уже открыто, закрываем его
+    const existingModal = bootstrap.Modal.getInstance(modalEl);
+    if (existingModal) {
+        existingModal.hide();
+        // Очищаем стили и классы
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        document.body.classList.remove('modal-open');
+    }
+
+    // Загружаем слова
     fetch('/dashboard/active-words-json')
         .then(response => {
             if (!response.ok) {
@@ -14,25 +38,60 @@ function initLearnModal() {
         })
         .then(data => {
             currentWords = JSON.parse(data);
-            currentWords = shuffleArray(currentWords); // Перемешиваем слова
+            currentWords = shuffleArray(currentWords);
             currentIndex = 0;
             showCardContent();
 
-            const modalEl = document.getElementById('learnModal');
-            const existingInstance = bootstrap.Modal.getInstance(modalEl);
+            // Создаем новый экземпляр модального окна
+            learnModalInstance = new bootstrap.Modal(modalEl, {
+                backdrop: true,
+                keyboard: true
+            });
 
-            if (existingInstance) {
-                learnModalInstance = existingInstance;
-            } else {
-                learnModalInstance = new bootstrap.Modal(modalEl, {
-                    backdrop: true,
-                    keyboard: true
-                });
-            }
-
+            // Показываем модальное окно
             learnModalInstance.show();
+            isInitialized = true;
         })
         .catch(error => console.error('Ошибка загрузки слов:', error));
+}
+
+function initLearnModalWithWords(words) {
+    if (isInitialized) {
+        console.log('LearnModal: уже инициализирован, пропускаем повторную инициализацию');
+        return;
+    }
+
+    // Получаем экземпляр модального окна
+    const modalEl = document.getElementById('learnModal');
+    if (!modalEl) {
+        console.error('LearnModal: элемент #learnModal не найден');
+        return;
+    }
+
+    // Если модальное окно уже открыто, закрываем его
+    const existingModal = bootstrap.Modal.getInstance(modalEl);
+    if (existingModal) {
+        existingModal.hide();
+        // Очищаем стили и классы
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        document.body.classList.remove('modal-open');
+    }
+
+    currentWords = words;
+    currentWords = shuffleArray(currentWords);
+    currentIndex = 0;
+    showCardContent();
+
+    // Создаем новый экземпляр модального окна
+    learnModalInstance = new bootstrap.Modal(modalEl, {
+        backdrop: true,
+        keyboard: true
+    });
+
+    // Показываем модальное окно
+    learnModalInstance.show();
+    isInitialized = true;
 }
 
 function showCardContent() {
@@ -140,21 +199,23 @@ function openLearnModal() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    const modalEl = document.getElementById('learnModal');
-    if (modalEl) {
-        modalEl.addEventListener('hidden.bs.modal', function () {
-            console.log('Modal closed, cleaning up...');
-            const body = document.body;
-            body.classList.remove('modal-open');
-            body.style.overflow = '';
-            body.style.paddingRight = '';
-            const backdrops = document.getElementsByClassName('modal-backdrop');
-            for (let i = backdrops.length - 1; i >= 0; i--) {
-                backdrops[i].remove();
-            }
-            window.dispatchEvent(new Event('resize'));
-        });
-    } else {
-        console.error("Элемент #learnModal не найден в DOM");
+    try {
+        const modalElement = document.getElementById('learnModal');
+        if (modalElement) {
+            console.log('LearnModal: инициализация модального окна');
+            
+            // Удаляем обработчик shown.bs.modal, так как он может вызывать проблемы
+            modalElement.addEventListener('hidden.bs.modal', function () {
+                isInitialized = false;
+                // Очищаем стили и классы при закрытии модального окна
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+                document.body.classList.remove('modal-open');
+            });
+        } else {
+            console.log("LearnModal: элемент #learnModal не найден в DOM");
+        }
+    } catch (error) {
+        console.error('Ошибка при инициализации learnModal:', error);
     }
 });

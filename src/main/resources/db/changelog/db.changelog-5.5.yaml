@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 5.5.0
+      author: system
+      changes:
+        - addColumn:
+            tableName: word_progress
+            columns:
+              - column:
+                  name: source
+                  type: varchar(20)
+                  defaultValue: 'PROGRAM'
+                  constraints:
+                    nullable: false
+                  remarks: 'Источник слова: PROGRAM, CUSTOM, TEXT'
+              - column:
+                  name: text_id
+                  type: bigint
+                  constraints:
+                    nullable: true
+                    foreignKeyName: fk_word_progress_text
+                    references: texts(id)
+                  remarks: 'Ссылка на текст, если слово из текста' 

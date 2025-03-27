@@ -93,8 +93,9 @@ public class LearnController {
         List<String> tagList = (List<String>) settings.getOrDefault("tags", Collections.emptyList());
         int activeWordsCount = (int) settings.getOrDefault("activeWordsCount", 50);
 
-        List<WordProgress> activeWords = wordProgressService.getActiveProgress(user.getId());
-        log.info("RefillWords: Current active words count: {}, Target count: {}", activeWords.size(), activeWordsCount);
+        // Получаем только активные слова для программы обучения (PROGRAM)
+        List<WordProgress> activeWords = wordProgressService.getActiveProgressForProgram(user.getId());
+        log.info("RefillWords: Current active program words count: {}, Target count: {}", activeWords.size(), activeWordsCount);
 
         Map<String, Object> response = new HashMap<>();
         if (activeWords.size() < activeWordsCount) {
@@ -112,6 +113,7 @@ public class LearnController {
             log.info("RefillWords: No refill needed, active words count is sufficient");
         }
 
+        // Получаем обновленные списки слов (включая слова из текстов для отображения)
         List<WordProgress> updatedActiveWords = wordProgressService.getActiveProgress(user.getId());
         List<WordProgress> learnedWords = wordProgressService.getLearnedProgress(user.getId());
 
@@ -123,10 +125,14 @@ public class LearnController {
             wordData.put("word", wp.getWord().getWord());
             wordData.put("translation", wp.getWord().getTranslation());
             wordData.put("knowledgeFactor", wp.getKnowledgeFactor());
+            wordData.put("source", wp.getSource().name());
+            if (wp.getText() != null) {
+                wordData.put("textTitle", wp.getText().getTitle());
+            }
             return wordData;
         }).collect(Collectors.toList()));
 
-        boolean showTagPrompt = updatedActiveWords.size() < activeWordsCount && tagList.size() < Tag.values().length;
+        boolean showTagPrompt = activeWords.size() < activeWordsCount && tagList.size() < Tag.values().length;
         response.put("showTagPrompt", showTagPrompt);
         if (showTagPrompt) {
             response.put("availableTags", Arrays.stream(Tag.values())
@@ -178,5 +184,63 @@ public class LearnController {
                     return wordData;
                 })
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/text-words")
+    @ResponseBody
+    public List<Map<String, Object>> getTextWords(HttpSession session, 
+                                                  @RequestParam(value = "textId", required = false) Long textId) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return Collections.emptyList();
+        }
+        
+        List<WordProgress> textWordProgress;
+        if (textId != null) {
+            // Получаем слова из конкретного текста
+            textWordProgress = wordProgressService.getTextProgressByTextId(user.getId(), textId);
+        } else {
+            // Получаем все слова из текстов
+            textWordProgress = wordProgressService.getTextProgress(user.getId());
+        }
+        
+        return textWordProgress.stream()
+            .map(wp -> {
+                Map<String, Object> wordData = new HashMap<>();
+                wordData.put("id", wp.getWord().getId());
+                wordData.put("word", wp.getWord().getWord());
+                wordData.put("translation", wp.getWord().getTranslation());
+                wordData.put("knowledgeFactor", wp.getKnowledgeFactor());
+                wordData.put("learned", wp.isLearned());
+                wordData.put("exampleSentence", wp.getWord().getExampleSentence());
+                wordData.put("exampleTranslation", wp.getWord().getExampleTranslation());
+                
+                // Добавляем информацию о тексте
+                if (wp.getText() != null) {
+                    wordData.put("textId", wp.getText().getId());
+                    wordData.put("textTitle", wp.getText().getTitle());
+                }
+                
+                return wordData;
+            })
+            .collect(Collectors.toList());
+    }
+
+    @GetMapping("/text-titles")
+    @ResponseBody
+    public List<Map<String, Object>> getTextTitles(HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return Collections.emptyList();
+        }
+        
+        return wordProgressService.getTextsWithWords(user.getId()).stream()
+            .map(text -> {
+                Map<String, Object> textData = new HashMap<>();
+                textData.put("id", text.getId());
+                textData.put("title", text.getTitle());
+                return textData;
+            })
+            .collect(Collectors.toList());
     }
 }

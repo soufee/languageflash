@@ -3,44 +3,65 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="customWordsModalLabel">Мой словарь</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
             <div class="modal-body">
-                <button type="button" class="btn btn-primary mb-3" id="addCustomWordButton" onclick="showAddCustomWordForm()">Добавить слово</button>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <button type="button" class="btn btn-primary" id="addCustomWordButton" onclick="showAddCustomWordForm()">
+                        <i class="bi bi-plus-circle"></i> Добавить слово
+                    </button>
+                    <div id="loadingIndicator" class="spinner-border text-primary d-none" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                </div>
                 <div id="addCustomWordForm" style="display: none;" class="mb-3">
                     <div class="mb-3">
                         <label for="customWord" class="form-label">Слово</label>
-                        <input type="text" class="form-control" id="customWord" oninput="checkCustomWord()">
+                        <input type="text" class="form-control" id="customWord" oninput="checkAutocomplete()" aria-describedby="customWordHelp">
+                        <div id="customWordHelp" class="form-text">Введите слово на изучаемом языке</div>
                     </div>
                     <div class="mb-3">
                         <label for="customTranslation" class="form-label">Перевод</label>
-                        <input type="text" class="form-control" id="customTranslation">
+                        <input type="text" class="form-control" id="customTranslation" oninput="checkDuplicates()" aria-describedby="customTranslationHelp">
+                        <div id="customTranslationHelp" class="form-text">Введите перевод слова на русский язык</div>
                     </div>
                     <div class="mb-3">
                         <label for="customExample" class="form-label">Пример</label>
-                        <input type="text" class="form-control" id="customExample">
+                        <input type="text" class="form-control" id="customExample" aria-describedby="customExampleHelp">
+                        <div id="customExampleHelp" class="form-text">Введите пример использования слова (необязательно)</div>
                     </div>
                     <div class="mb-3">
                         <label for="customExampleTranslation" class="form-label">Перевод примера</label>
-                        <input type="text" class="form-control" id="customExampleTranslation">
+                        <input type="text" class="form-control" id="customExampleTranslation" aria-describedby="customExampleTranslationHelp">
+                        <div id="customExampleTranslationHelp" class="form-text">Введите перевод примера на русский язык (необязательно)</div>
                     </div>
-                    <div id="customWordWarning" class="alert" style="display: none;"></div>
-                    <button type="button" class="btn btn-primary" id="saveCustomWordButton" onclick="saveCustomWord()" disabled>Сохранить</button>
-                    <button type="button" class="btn btn-secondary" onclick="hideAddCustomWordForm()">Отмена</button>
+                    <div id="customWordWarning" class="alert" style="display: none;" role="alert"></div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary" id="saveCustomWordButton" onclick="saveCustomWord()" disabled>
+                            <i class="bi bi-save"></i> Сохранить
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="hideAddCustomWordForm()">
+                            <i class="bi bi-x-circle"></i> Отмена
+                        </button>
+                    </div>
                 </div>
-                <table class="table table-striped" id="customWordsTable">
-                    <thead>
-                    <tr>
-                        <th>Слово</th>
-                        <th>Перевод</th>
-                    </tr>
-                    </thead>
-                    <tbody id="customWordsBody"></tbody>
-                </table>
-                <p id="noCustomWords" style="display: none;">Нет слов в словаре.</p>
+                <div class="table-responsive">
+                    <table class="table table-striped" id="customWordsTable" aria-label="Список слов">
+                        <thead>
+                        <tr>
+                            <th scope="col">Слово</th>
+                            <th scope="col">Перевод</th>
+                        </tr>
+                        </thead>
+                        <tbody id="customWordsBody"></tbody>
+                    </table>
+                </div>
+                <p id="noCustomWords" class="text-center text-muted" style="display: none;">Нет слов в словаре.</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg"></i> Закрыть
+                </button>
             </div>
         </div>
     </div>

@@ -40,56 +40,58 @@ public class DashboardController {
 
     @GetMapping(value = "/dashboard", produces = "text/html;charset=UTF-8")
     public String dashboard(Model model, HttpSession session) throws JsonProcessingException {
-        User user = (User) session.getAttribute("user");
-        if (user == null) {
-            return "redirect:/";
+        if (session.getAttribute("user") == null) {
+            return "redirect:/login";
         }
-        log.info("Loading dashboard for user: {}", user.getEmail());
+
+        User user = (User) session.getAttribute("user");
         model.addAttribute("user", user);
-        model.addAttribute("userId", user.getId());
 
-        List<Language> activeLanguages = languageService.getAllLanguages().stream()
-                .filter(Language::isActive)
-                .collect(Collectors.toList());
-        model.addAttribute("languages", activeLanguages);
-
-        model.addAttribute("tags", Tag.values());
-
-        List<WordProgress> activeProgress = wordProgressService.getActiveProgress(user.getId());
-        List<WordProgress> learnedProgress = wordProgressService.getLearnedProgress(user.getId());
-        log.info("Active words count: {}, Learned words count: {}", activeProgress.size(), learnedProgress.size());
-        model.addAttribute("activeWords", activeProgress);
-        model.addAttribute("learnedWords", learnedProgress);
-        model.addAttribute("progressCount", activeProgress.size());
-        model.addAttribute("learnedCount", learnedProgress.size());
-
-        List<Map<String, Object>> activeWordsJson = activeProgress.stream()
-                .map(wp -> {
-                    Map<String, Object> wordData = new HashMap<>();
-                    wordData.put("id", wp.getWord().getId());
-                    wordData.put("word", wp.getWord().getWord());
-                    wordData.put("translation", wp.getWord().getTranslation());
-                    wordData.put("knowledgeFactor", wp.getKnowledgeFactor());
-                    wordData.put("exampleSentence", wp.getWord().getExampleSentence());
-                    wordData.put("exampleTranslation", wp.getWord().getExampleTranslation());
-                    return wordData;
-                })
-                .collect(Collectors.toList());
-        String jsonString = objectMapper.writeValueAsString(activeWordsJson);
-        log.info("activeWordsJson: {}", jsonString);
-        model.addAttribute("activeWordsJson", jsonString);
-
+        // Загружаем настройки пользователя
         Map<String, Object> settings = userService.getSettings(user.getId());
         model.addAttribute("settings", settings);
 
-        List<String> tagRussianNames = settings.containsKey("tags") && settings.get("tags") != null
-                ? ((List<String>) settings.get("tags")).stream()
-                .map(Tag::valueOf)
-                .map(Tag::getRussianName)
-                .collect(Collectors.toList())
-                : Collections.emptyList();
-        model.addAttribute("tagRussianNames", tagRussianNames);
+        // Получаем активные слова для программы (без слов из текстов)
+        List<WordProgress> activeProgress = wordProgressService.getActiveProgress(user.getId());
+        model.addAttribute("progressCount", activeProgress.size());
+        
+        // Получаем выученные слова
+        List<WordProgress> learnedProgress = wordProgressService.getLearnedProgress(user.getId());
+        model.addAttribute("learnedCount", learnedProgress.size());
+        
+        // Инициализируем слова для изучения, если их недостаточно
+        if (settings.containsKey("language")) {
+            String language = (String) settings.get("language");
+            String minLevel = (String) settings.get("minLevel");
+            @SuppressWarnings("unchecked")
+            List<String> tagList = (List<String>) settings.getOrDefault("tags", Collections.emptyList());
+            int activeWordsCount = (int) settings.getOrDefault("activeWordsCount", 50);
+            
+            // Получаем только активные слова программы для проверки необходимости добавления
+            List<WordProgress> programWords = wordProgressService.getActiveProgressForProgram(user.getId());
+            int currentActiveCount = programWords.size();
+            
+            if (currentActiveCount < activeWordsCount) {
+                initializeLearningWords(user, language, minLevel, tagList, activeWordsCount, currentActiveCount, model);
+            }
+        }
 
+        // Если есть теги для этого языка, получаем их русские имена
+        if (settings.get("tags") != null) {
+            @SuppressWarnings("unchecked")
+            List<String> tagNames = (List<String>) settings.get("tags");
+            List<String> tagRussianNames = new ArrayList<>();
+            for (String tagName : tagNames) {
+                try {
+                    tagRussianNames.add(Tag.valueOf(tagName).getRussianName());
+                } catch (IllegalArgumentException e) {
+                    // Игнорируем некорректные теги
+                }
+            }
+            model.addAttribute("tagRussianNames", tagRussianNames);
+        }
+
+        // Загружаем кастомные слова
         List<AbstractWord> customWords = wordRepository.findCustomWordsByUserId(user.getId());
         model.addAttribute("customWordsCount", customWords.size());
 
@@ -321,10 +323,27 @@ public class DashboardController {
         if (user == null) {
             throw new IllegalStateException("Пользователь не авторизован");
         }
+        
         Long wordId = Long.valueOf(requestBody.get("wordId").toString());
-        Boolean knows = Boolean.valueOf(requestBody.get("knows").toString());
-
-        wordProgressService.updateProgress(user.getId(), wordId, knows);
+        
+        // Проверяем, есть ли флаг markLearned
+        Boolean markLearned = requestBody.get("markLearned") != null 
+            ? Boolean.valueOf(requestBody.get("markLearned").toString()) 
+            : false;
+        
+        if (markLearned) {
+            // Помечаем слово как изученное
+            WordProgress progress = wordProgressService.getProgress(user.getId(), wordId);
+            progress.setKnowledgeFactor(0.0f);
+            progress.setLearned(true);
+            wordProgressService.save(progress);
+            
+            log.info("Слово с ID {} помечено как изученное пользователем {}", wordId, user.getEmail());
+        } else {
+            // Стандартное обновление прогресса
+            Boolean knows = Boolean.valueOf(requestBody.get("knows").toString());
+            wordProgressService.updateProgress(user.getId(), wordId, knows);
+        }
 
         Map<String, String> response = new HashMap<>();
         response.put("status", "success");
@@ -464,5 +483,171 @@ public class DashboardController {
 
         response.put("status", "success");
         return response;
+    }
+
+    @GetMapping("/dashboard/text-words-count")
+    @ResponseBody
+    public Map<String, Integer> getTextWordsCount(HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        Map<String, Integer> response = new HashMap<>();
+        
+        if (user == null) {
+            response.put("count", 0);
+            return response;
+        }
+        
+        int count = wordProgressService.getTextProgress(user.getId()).size();
+        response.put("count", count);
+        return response;
+    }
+
+    @GetMapping("/dashboard/learned-words-count")
+    @ResponseBody
+    public Map<String, Integer> getLearnedWordsCount(HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        Map<String, Integer> response = new HashMap<>();
+        
+        if (user == null) {
+            response.put("count", 0);
+            return response;
+        }
+        
+        int count = wordProgressService.getLearnedProgress(user.getId()).size();
+        response.put("count", count);
+        return response;
+    }
+
+    @GetMapping("/dashboard/text-words-direct")
+    public String getTextWordsDirect(Model model, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            log.warn("getTextWordsDirect: User not authenticated");
+            model.addAttribute("error", "Пользователь не авторизован");
+            return "error";
+        }
+        
+        try {
+            log.info("getTextWordsDirect: Прямой доступ к словам из текстов для пользователя id={}, email={}", user.getId(), user.getEmail());
+            // Получаем прогресс по словам из текстов
+            List<WordProgress> textProgress = wordProgressService.getTextProgress(user.getId());
+            if (textProgress == null) {
+                log.error("getTextWordsDirect: textProgress is null for user {}", user.getEmail());
+                textProgress = Collections.emptyList();
+            }
+            log.info("getTextWordsDirect: Found {} text words for user {}", textProgress.size(), user.getEmail());
+            
+            // Получаем список текстов
+            List<Text> texts = wordProgressService.getTextsWithWords(user.getId());
+            if (texts == null) {
+                log.error("getTextWordsDirect: texts is null for user {}", user.getEmail());
+                texts = Collections.emptyList();
+            }
+            log.info("getTextWordsDirect: Found {} texts with words for user {}", texts.size(), user.getEmail());
+            
+            // Добавляем данные в модель
+            model.addAttribute("textWords", textProgress);
+            model.addAttribute("texts", texts);
+            model.addAttribute("user", user);
+            
+            return "debug/text-words-debug";
+        } catch (Exception e) {
+            log.error("getTextWordsDirect: Unexpected error: {}", e.getMessage(), e);
+            model.addAttribute("error", "Произошла ошибка при загрузке данных: " + e.getMessage());
+            model.addAttribute("stackTrace", e.getStackTrace());
+            return "error";
+        }
+    }
+
+    @GetMapping("/dashboard/text-words")
+    @ResponseBody
+    public Map<String, Object> getTextWords(HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        Map<String, Object> response = new HashMap<>();
+        
+        if (user == null) {
+            log.warn("getTextWords: User not authenticated");
+            response.put("words", Collections.emptyList());
+            response.put("texts", Collections.emptyList());
+            response.put("error", "Пользователь не авторизован");
+            return response;
+        }
+        
+        try {
+            // Получаем прогресс по словам из текстов
+            log.info("getTextWords: Запрашиваем слова из текстов для пользователя id={}, email={}", user.getId(), user.getEmail());
+            List<WordProgress> textProgress = wordProgressService.getTextProgress(user.getId());
+            if (textProgress == null) {
+                log.error("getTextWords: textProgress is null for user {}", user.getEmail());
+                textProgress = Collections.emptyList();
+            }
+            log.info("getTextWords: Found {} text words for user {}", textProgress.size(), user.getEmail());
+            
+            // Получаем список текстов
+            List<Text> texts = wordProgressService.getTextsWithWords(user.getId());
+            if (texts == null) {
+                log.error("getTextWords: texts is null for user {}", user.getEmail());
+                texts = Collections.emptyList();
+            }
+            log.info("getTextWords: Found {} texts with words for user {}", texts.size(), user.getEmail());
+            
+            // Преобразуем прогресс в формат для фронтенда
+            List<Map<String, Object>> wordsData = new ArrayList<>();
+            for (WordProgress wp : textProgress) {
+                try {
+                    Map<String, Object> wordData = new HashMap<>();
+                    
+                    // Проверяем наличие слова
+                    if (wp.getWord() == null) {
+                        log.warn("getTextWords: Word is null for progress id={}", wp.getId());
+                        continue;
+                    }
+                    
+                    wordData.put("id", wp.getWord().getId());
+                    wordData.put("word", wp.getWord().getWord());
+                    wordData.put("translation", wp.getWord().getTranslation());
+                    wordData.put("knowledgeFactor", wp.getKnowledgeFactor());
+                    wordData.put("learned", wp.isLearned());
+                    
+                    if (wp.getText() != null) {
+                        wordData.put("textId", wp.getText().getId());
+                        wordData.put("textTitle", wp.getText().getTitle());
+                    } else {
+                        log.warn("getTextWords: Text is null for word id={}", wp.getWord().getId());
+                        wordData.put("textTitle", "Неизвестный текст");
+                    }
+                    
+                    wordsData.add(wordData);
+                } catch (Exception e) {
+                    log.error("getTextWords: Error processing word: {}", e.getMessage(), e);
+                }
+            }
+            
+            // Преобразуем тексты в формат для фронтенда
+            List<Map<String, Object>> textsData = new ArrayList<>();
+            for (Text text : texts) {
+                try {
+                    Map<String, Object> textData = new HashMap<>();
+                    textData.put("id", text.getId());
+                    textData.put("title", text.getTitle());
+                    textData.put("language", text.getLanguage() != null ? text.getLanguage().getName() : "Неизвестный язык");
+                    textData.put("level", text.getLevel());
+                    textsData.add(textData);
+                } catch (Exception e) {
+                    log.error("getTextWords: Error processing text: {}", e.getMessage(), e);
+                }
+            }
+            
+            response.put("words", wordsData);
+            response.put("texts", textsData);
+            log.info("getTextWords: Response prepared with {} words and {} texts", wordsData.size(), textsData.size());
+            
+            return response;
+        } catch (Exception e) {
+            log.error("getTextWords: Unexpected error: {}", e.getMessage(), e);
+            response.put("words", Collections.emptyList());
+            response.put("texts", Collections.emptyList());
+            response.put("error", "Произошла ошибка при загрузке данных: " + e.getMessage());
+            return response;
+        }
     }
 }

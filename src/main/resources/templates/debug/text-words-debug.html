@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Отладка слов из текстов - Language Flash</title>
+    <div th:replace="~{fragments/resources :: resources}"></div>
+    <style>
+        .debug-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .debug-table {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .debug-table th, .debug-table td {
+            padding: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .debug-header {
+            background-color: #e9ecef;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/header :: header}"></div>
+
+<section class="content-section">
+    <div class="container">
+        <h1>Отладка слов из текстов</h1>
+        
+        <div class="debug-info">
+            <h3>Информация о пользователе</h3>
+            <p>ID: <span th:text="${user.id}"></span></p>
+            <p>Email: <span th:text="${user.email}"></span></p>
+            <p>Имя: <span th:text="${user.firstName}"></span> <span th:text="${user.lastName}"></span></p>
+        </div>
+        
+        <div class="debug-header">
+            <h3>Тексты с словами (<span th:text="${texts != null ? texts.size() : 0}"></span>)</h3>
+        </div>
+        
+        <div th:if="${texts != null && !texts.isEmpty()}">
+            <table class="debug-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Заголовок</th>
+                        <th>Язык</th>
+                        <th>Уровень</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="text : ${texts}">
+                        <td th:text="${text.id}"></td>
+                        <td th:text="${text.title}"></td>
+                        <td th:text="${text.language != null ? text.language.name : 'Неизвестный язык'}"></td>
+                        <td th:text="${text.level}"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div th:unless="${texts != null && !texts.isEmpty()}" class="alert alert-warning">
+            Нет текстов с словами для отображения.
+        </div>
+        
+        <div class="debug-header">
+            <h3>Слова из текстов (<span th:text="${textWords != null ? textWords.size() : 0}"></span>)</h3>
+        </div>
+        
+        <div th:if="${textWords != null && !textWords.isEmpty()}">
+            <table class="debug-table">
+                <thead>
+                    <tr>
+                        <th>ID прогресса</th>
+                        <th>ID слова</th>
+                        <th>Слово</th>
+                        <th>Перевод</th>
+                        <th>Изучено</th>
+                        <th>Коэф. знания</th>
+                        <th>Текст</th>
+                        <th>Источник</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="wp : ${textWords}">
+                        <td th:text="${wp.id}"></td>
+                        <td th:text="${wp.word != null ? wp.word.id : 'null'}"></td>
+                        <td th:text="${wp.word != null ? wp.word.word : 'null'}"></td>
+                        <td th:text="${wp.word != null ? wp.word.translation : 'null'}"></td>
+                        <td th:text="${wp.learned}"></td>
+                        <td th:text="${wp.knowledgeFactor}"></td>
+                        <td th:text="${wp.text != null ? wp.text.title : 'Неизвестный текст'}"></td>
+                        <td th:text="${wp.source}"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div th:unless="${textWords != null && !textWords.isEmpty()}" class="alert alert-warning">
+            Нет слов из текстов для отображения.
+        </div>
+        
+        <div class="mt-4">
+            <a href="/dashboard" class="btn btn-primary">Вернуться в личный кабинет</a>
+        </div>
+    </div>
+</section>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html> 

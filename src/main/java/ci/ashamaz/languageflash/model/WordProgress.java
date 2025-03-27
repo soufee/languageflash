@@ -32,4 +32,12 @@ public class WordProgress {
 
     @Column(name = "next_review_date")
     private LocalDateTime nextReviewDate;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source", nullable = false)
+    private WordSource source = WordSource.PROGRAM;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "text_id")
+    private Text text;
 }
