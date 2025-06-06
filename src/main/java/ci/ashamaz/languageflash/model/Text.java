@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.Arrays;
 
 @Entity
 @Table(name = "texts")
@@ -53,7 +54,7 @@ public class Text {
     @Column(name = "created_date", nullable = false, updatable = false)
     private LocalDateTime createdDate = LocalDateTime.now();
 
-    @OneToMany(mappedBy = "text", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "text", cascade = CascadeType.ALL, orphanRemoval = false)
     @JsonManagedReference
     private List<TextWord> words;
 
@@ -64,13 +65,56 @@ public class Text {
         if (tags == null || tags.isEmpty()) {
             return Collections.emptySet();
         }
+        
         try {
-            Set<String> tagNames = mapper.readValue(tags, new TypeReference<Set<String>>() {});
-            return tagNames.stream()
-                    .map(Tag::valueOf)
-                    .collect(Collectors.toSet());
+            // Пробуем сначала распарсить как JSON массив строк
+            if (tags.startsWith("[") && tags.endsWith("]")) {
+                Set<String> tagNames = mapper.readValue(tags, new TypeReference<Set<String>>() {});
+                return tagNames.stream()
+                        .map(String::trim)
+                        .filter(name -> !name.isEmpty())
+                        .map(name -> {
+                            try {
+                                return Tag.valueOf(name);
+                            } catch (IllegalArgumentException e) {
+                                return null;
+                            }
+                        })
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet());
+            } else {
+                // Если не JSON, разделяем по запятым (обычная строка)
+                return Arrays.stream(tags.split(","))
+                        .map(String::trim)
+                        .filter(name -> !name.isEmpty())
+                        .map(name -> {
+                            try {
+                                return Tag.valueOf(name);
+                            } catch (IllegalArgumentException e) {
+                                return null;
+                            }
+                        })
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet());
+            }
         } catch (IOException e) {
-            return Collections.emptySet();
+            // В случае ошибки парсинга, пытаемся разделить строку по запятым
+            try {
+                return Arrays.stream(tags.split(","))
+                        .map(String::trim)
+                        .filter(name -> !name.isEmpty())
+                        .map(name -> {
+                            try {
+                                return Tag.valueOf(name);
+                            } catch (IllegalArgumentException e2) {
+                                return null;
+                            }
+                        })
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet());
+            } catch (Exception e2) {
+                return Collections.emptySet();
+            }
         }
     }
 
@@ -103,9 +147,14 @@ public class Text {
 
     public void setTagsAsSet(Set<Tag> tags) {
         try {
-            this.tags = tags != null && !tags.isEmpty()
-                    ? mapper.writeValueAsString(tags.stream().map(Enum::name).collect(Collectors.toSet()))
-                    : null;
+            if (tags != null && !tags.isEmpty()) {
+                Set<String> tagNames = tags.stream()
+                    .map(Enum::name)
+                    .collect(Collectors.toSet());
+                this.tags = mapper.writeValueAsString(tagNames);
+            } else {
+                this.tags = null;
+            }
         } catch (IOException e) {
             this.tags = null;
         }

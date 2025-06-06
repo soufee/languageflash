@@ -50,29 +50,29 @@
                             </form>
                         </td>
                         <td>
-                            <form th:action="@{/admin/languages/update}" method="post" class="d-inline">
-                                <input type="hidden" name="languageId" th:value="${language.id}">
-                                <input type="hidden" name="name" th:value="${language.name}">
-                                <input type="checkbox" name="active" th:checked="${language.active}" onchange="this.form.submit()">
+                            <form th:action="@{/admin/languages/{id}/update(id=${language.id})}" method="post" class="d-inline">
+                                <input type="hidden" name="name" th:value="${language.name}"/>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="active" 
+                                           th:checked="${language.active}" th:id="'activeSwitch' + ${language.id}"
+                                           onchange="this.form.submit();">
+                                </div>
                             </form>
                         </td>
                         <td>
-                            <form th:action="@{/admin/languages/levels/update}" method="post" class="d-flex flex-wrap">
-                                <input type="hidden" name="languageId" th:value="${language.id}">
-                                <th:block th:each="level : ${levels}">
-                                    <div class="form-check me-2">
-                                        <label class="form-check-label" th:for="${'level-' + language.id + '-' + level}" th:text="${level}"></label>
-                                        <input type="checkbox"
-                                               class="form-check-input"
-                                               th:id="${'level-' + language.id + '-' + level}"
-                                               th:name="active-checkbox"
-                                               th:checked="${languageLevelsMap[language.id].get(level)}"
-                                               onchange="this.form.querySelector('input[name=\'active\']').value = this.checked ? 'true' : 'false'; this.form.querySelector('input[name=\'level\']').value = this.previousElementSibling.textContent; this.form.submit();">
-                                        <input type="hidden" name="active" th:value="${languageLevelsMap[language.id].get(level) ? 'true' : 'false'}">
-                                        <input type="hidden" name="level" value="">
+                            <th:block th:each="level : ${levels}">
+                                <form th:action="@{/admin/languages/levels/update}" method="post" class="d-inline">
+                                    <input type="hidden" name="id" th:value="${language.id}"/>
+                                    <input type="hidden" name="level" th:value="${level}"/>
+                                    <div class="form-check form-switch">
+                                        <input type="hidden" name="active" value="false"/>
+                                        <input class="form-check-input" type="checkbox" name="active" value="true" 
+                                               th:checked="${languageLevelsMap[language.id][level]}" 
+                                               onchange="this.form.submit();">
+                                        <label class="form-check-label" th:text="${level}"></label>
                                     </div>
-                                </th:block>
-                            </form>
+                                </form>
+                            </th:block>
                         </td>
                         <td>
                             <!-- Можно добавить удаление языка в будущем -->

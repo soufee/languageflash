@@ -1,11 +1,13 @@
 package ci.ashamaz.languageflash.service;
 
+import ci.ashamaz.languageflash.config.TestSecurityConfig;
 import ci.ashamaz.languageflash.model.*;
 import ci.ashamaz.languageflash.repository.WordProgressRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ContextConfiguration;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -14,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest
+@ContextConfiguration(classes = {TestSecurityConfig.class})
 class WordProgressServiceTest {
 
     @InjectMocks
@@ -100,6 +103,20 @@ class WordProgressServiceTest {
         List<WordProgress> savedProgress = captor.getValue();
         assertEquals(1, savedProgress.size()); // Только word2, так как word1 уже есть
         assertEquals(2L, savedProgress.get(0).getWord().getId());
+    }
+
+    @Test
+    void initializeProgress_nullUser() {
+        Long userId = 1L;
+        List<Word> words = Arrays.asList(createWord(1L));
+        when(userService.getUserById(userId)).thenReturn(null);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            wordProgressService.initializeProgress(userId, words);
+        });
+
+        assertEquals("Пользователь с ID " + userId + " не найден", exception.getMessage());
+        verify(wordProgressRepository, never()).saveAll(anyList());
     }
 
     // Тесты для initializeSingleProgress
@@ -227,6 +244,75 @@ class WordProgressServiceTest {
         WordProgress savedProgress = savedProgressList.get(1); // Берем второй вызов (update)
         assertEquals(0.75f, savedProgress.getKnowledgeFactor(), 0.001);
         assertFalse(savedProgress.isLearned());
+    }
+
+    @Test
+    void updateProgress_nullProgress() {
+        Long userId = 1L;
+        Long wordId = 1L;
+        User user = new User();
+        user.setId(userId);
+        Word word = createWord(wordId);
+        when(wordProgressRepository.findByUserIdAndWordId(userId, wordId)).thenReturn(Optional.empty());
+        when(userService.getUserById(userId)).thenReturn(user);
+        when(wordService.getWordById(wordId)).thenReturn(word);
+
+        WordProgress initialProgress = new WordProgress();
+        initialProgress.setUser(user);
+        initialProgress.setWord(word);
+        when(wordProgressRepository.save(any(WordProgress.class))).thenReturn(initialProgress);
+
+        wordProgressService.updateProgress(userId, wordId, true);
+
+        verify(wordProgressRepository, times(2)).save(any(WordProgress.class));
+    }
+
+    @Test
+    void updateProgress_expiredReviewDate() {
+        Long userId = 1L;
+        Long wordId = 1L;
+        WordProgress progress = new WordProgress();
+        progress.setKnowledgeFactor(1.0f);
+        progress.setLastReviewed(LocalDateTime.now().minusDays(30));
+        progress.setNextReviewDate(LocalDateTime.now().minusDays(29));
+        when(wordProgressRepository.findByUserIdAndWordId(userId, wordId)).thenReturn(Optional.of(progress));
+
+        wordProgressService.updateProgress(userId, wordId, true);
+
+        assertTrue(progress.getNextReviewDate().isAfter(LocalDateTime.now()));
+        verify(wordProgressRepository, times(1)).save(progress);
+    }
+
+    @Test
+    void updateProgress_maxKnowledgeFactor() {
+        Long userId = 1L;
+        Long wordId = 1L;
+        WordProgress progress = new WordProgress();
+        progress.setKnowledgeFactor(10.0f);
+        when(wordProgressRepository.findByUserIdAndWordId(userId, wordId)).thenReturn(Optional.of(progress));
+
+        wordProgressService.updateProgress(userId, wordId, false);
+
+        ArgumentCaptor<WordProgress> captor = ArgumentCaptor.forClass(WordProgress.class);
+        verify(wordProgressRepository, times(1)).save(captor.capture());
+        WordProgress savedProgress = captor.getValue();
+        assertEquals(10.0f, savedProgress.getKnowledgeFactor(), 0.001);
+        assertFalse(savedProgress.isLearned());
+    }
+
+    @Test
+    void updateProgress_minKnowledgeFactor() {
+        Long userId = 1L;
+        Long wordId = 1L;
+        WordProgress progress = new WordProgress();
+        progress.setKnowledgeFactor(0.1f);
+        progress.setLastReviewed(LocalDateTime.now().minusDays(1));
+        when(wordProgressRepository.findByUserIdAndWordId(userId, wordId)).thenReturn(Optional.of(progress));
+
+        wordProgressService.updateProgress(userId, wordId, false);
+
+        assertEquals(0.13f, progress.getKnowledgeFactor(), 0.001);
+        verify(wordProgressRepository, times(1)).save(progress);
     }
 
     // Тесты для getActiveProgress

@@ -261,6 +261,67 @@ class WordServiceTest {
         verify(wordRepository, times(1)).save(any(Word.class));
     }
 
+    @Test
+    void addWord_invalidLevel() {
+        String wordStr = "test";
+        String translation = "тест";
+        String exampleSentence = "This is a test.";
+        String exampleTranslation = "Это тест.";
+        Long languageId = 1L;
+        String level = "INVALID_LEVEL";
+        List<String> tags = Collections.emptyList();
+        Language language = new Language();
+        language.setId(languageId);
+        when(languageService.getLanguageById(languageId)).thenReturn(language);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            wordService.addWord(wordStr, translation, exampleSentence, exampleTranslation, languageId, level, tags);
+        });
+
+        assertEquals("Недопустимый уровень: " + level, exception.getMessage());
+        verify(wordRepository, never()).save(any(Word.class));
+    }
+
+    @Test
+    void addWord_languageNotFound() {
+        String wordStr = "test";
+        String translation = "тест";
+        String exampleSentence = "This is a test.";
+        String exampleTranslation = "Это тест.";
+        Long languageId = 1L;
+        String level = Level.A1.name();
+        List<String> tags = Collections.emptyList();
+        when(languageService.getLanguageById(languageId)).thenReturn(null);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            wordService.addWord(wordStr, translation, exampleSentence, exampleTranslation, languageId, level, tags);
+        });
+
+        assertEquals("Язык с ID " + languageId + " не найден", exception.getMessage());
+        verify(wordRepository, never()).save(any(Word.class));
+    }
+
+    @Test
+    void addWord_invalidTag() {
+        String wordStr = "test";
+        String translation = "тест";
+        String exampleSentence = "This is a test.";
+        String exampleTranslation = "Это тест.";
+        Long languageId = 1L;
+        String level = Level.A1.name();
+        List<String> tags = Arrays.asList("INVALID_TAG");
+        Language language = new Language();
+        language.setId(languageId);
+        when(languageService.getLanguageById(languageId)).thenReturn(language);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            wordService.addWord(wordStr, translation, exampleSentence, exampleTranslation, languageId, level, tags);
+        });
+
+        assertEquals("No enum constant ci.ashamaz.languageflash.model.Tag.INVALID_TAG", exception.getMessage());
+        verify(wordRepository, never()).save(any(Word.class));
+    }
+
     // Тесты для selectWordsForLearning
     @Test
     void selectWordsForLearning_noWordsNeeded() {
@@ -400,6 +461,47 @@ class WordServiceTest {
         assertEquals(1, result.size()); // Только word2, так как word1 уже есть
         assertEquals(2L, result.get(0).getId());
         verify(wordRepository, times(1)).findByLanguageIdAndMinLevelAndTag(1L, "A1", Tag.HISTORY.name());
+    }
+
+    @Test
+    void selectWordsForLearning_invalidLevel() {
+        Long userId = 1L;
+        String languageName = "English";
+        String minLevel = "INVALID_LEVEL";
+        List<String> tags = Collections.emptyList();
+        int currentActiveCount = 10;
+        Language language = new Language();
+        language.setId(1L);
+        language.setName(languageName);
+        when(languageService.getLanguageByName(languageName)).thenReturn(language);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            wordService.selectWordsForLearning(userId, languageName, minLevel, tags, currentActiveCount);
+        });
+
+        assertEquals("Недопустимый уровень: " + minLevel, exception.getMessage());
+        verify(wordRepository, never()).findByLanguageIdAndMinLevel(anyLong(), anyString());
+    }
+
+    @Test
+    void selectWordsForLearning_invalidTag() {
+        Long userId = 1L;
+        String languageName = "English";
+        String minLevel = Level.A1.name();
+        List<String> tags = Arrays.asList("INVALID_TAG");
+        int currentActiveCount = 0;
+        Language language = new Language();
+        language.setId(1L);
+        language.setName(languageName);
+        when(languageService.getLanguageByName(languageName)).thenReturn(language);
+        when(userService.getSettings(userId)).thenReturn(Map.of("activeWordsCount", 50));
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            wordService.selectWordsForLearning(userId, languageName, minLevel, tags, currentActiveCount);
+        });
+
+        assertEquals("No enum constant ci.ashamaz.languageflash.model.Tag.INVALID_TAG", exception.getMessage());
+        verify(wordRepository, never()).findByLanguageIdAndMinLevelAndTag(anyLong(), anyString(), anyString());
     }
 
     private Word createWord(Long id) {

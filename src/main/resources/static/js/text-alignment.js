@@ -89,6 +89,5 @@ function initTextAlignment() {
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[text-alignment.js] Инициализация скрипта...');
     initTextAlignment();
 });

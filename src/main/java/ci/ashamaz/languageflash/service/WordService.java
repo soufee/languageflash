@@ -84,6 +84,16 @@ public class WordService {
                         List<@NotEmpty String> tags) {
         log.info("Adding word: {} for languageId: {}, level: {}, tags: {}", word, languageId, level, tags);
         Language language = languageService.getLanguageById(languageId);
+        if (language == null) {
+            throw new IllegalArgumentException("Язык с ID " + languageId + " не найден");
+        }
+        
+        try {
+            Level.valueOf(level);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Недопустимый уровень: " + level);
+        }
+        
         Word newWord = new Word();
         newWord.setWord(word);
         newWord.setTranslation(translation);
@@ -136,6 +146,16 @@ public class WordService {
 
         List<Word> selectedWords = new ArrayList<>();
         Set<String> tagSet = tags != null ? new HashSet<>(tags) : Collections.emptySet();
+
+        if (!tagSet.isEmpty()) {
+            for (String tag : tagSet) {
+                try {
+                    Tag.valueOf(tag);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("No enum constant ci.ashamaz.languageflash.model.Tag." + tag);
+                }
+            }
+        }
 
         for (int i = minLevelIndex; i < levelOrder.size() && selectedWords.size() < wordsNeeded; i++) {
             String currentLevel = levelOrder.get(i);

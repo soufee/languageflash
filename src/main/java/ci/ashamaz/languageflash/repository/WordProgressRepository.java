@@ -30,4 +30,6 @@ public interface WordProgressRepository extends JpaRepository<WordProgress, Long
     
     @Query("SELECT wp FROM WordProgress wp WHERE wp.user.id = :userId AND wp.source = :source AND wp.text.id = :textId")
     List<WordProgress> findByUserIdAndSourceAndTextId(@Param("userId") Long userId, @Param("source") WordSource source, @Param("textId") Long textId);
+
+    boolean existsByUserIdAndTextIdAndSource(Long userId, Long textId, WordSource source);
 }

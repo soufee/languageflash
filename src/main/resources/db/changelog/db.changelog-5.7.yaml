@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 5.7.0
+      author: system
+      changes:
+        - addColumn:
+            tableName: words
+            columns:
+              - column:
+                  name: is_active
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+      comment: Добавляем поле is_active для логического удаления слов 

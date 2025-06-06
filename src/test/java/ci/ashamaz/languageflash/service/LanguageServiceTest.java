@@ -151,12 +151,13 @@ class LanguageServiceTest {
         Long languageId = 1L;
         Level level = Level.A1;
         when(languageLevelRepository.findByLanguageIdAndLevel(languageId, level)).thenReturn(Optional.empty());
+        when(languageRepository.findById(languageId)).thenReturn(Optional.empty());
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             languageService.updateLanguageLevel(languageId, level, true);
         });
 
-        assertEquals("Уровень " + level + " для языка " + languageId + " не найден", exception.getMessage());
+        assertEquals("Язык с ID " + languageId + " не найден", exception.getMessage());
         verify(languageLevelRepository, never()).save(any(LanguageLevel.class));
     }
 

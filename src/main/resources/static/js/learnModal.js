@@ -6,8 +6,17 @@ let isExampleVisible = false;
 let isInitialized = false;
 
 function initLearnModal() {
+    console.log('=== initLearnModal START ===');
+    
     if (isInitialized) {
         console.log('LearnModal: уже инициализирован, пропускаем повторную инициализацию');
+        return;
+    }
+
+    // Check if currentUserId is defined
+    if (typeof currentUserId === 'undefined' || currentUserId === null) {
+        console.error('Error: currentUserId is not defined.');
+        alert('Ошибка: ID пользователя не найден. Невозможно открыть карточки.');
         return;
     }
 
@@ -29,15 +38,32 @@ function initLearnModal() {
     }
 
     // Загружаем слова
-    fetch('/dashboard/active-words-json')
+    const url = `/api/dashboard/words/active?userId=${currentUserId}`;
+    console.log('Loading active words from:', url);
+    
+    fetch(url, {
+        method: 'GET',
+        credentials: 'include'
+    })
         .then(response => {
+            console.log('Active words response status:', response.status);
             if (!response.ok) {
                 throw new Error('Ошибка загрузки активных слов: ' + response.status);
             }
-            return response.text();
+            return response.json(); // Используем response.json() вместо response.text()
         })
-        .then(data => {
-            currentWords = JSON.parse(data);
+        .then(wordProgressList => {
+            console.log('Received word progress list:', wordProgressList);
+            // Преобразуем WordProgress в обычные объекты слов для совместимости
+            currentWords = wordProgressList.map(wp => ({
+                id: wp.word.id,
+                word: wp.word.word,
+                translation: wp.word.translation,
+                exampleSentence: wp.word.exampleSentence,
+                exampleTranslation: wp.word.exampleTranslation
+            }));
+            console.log('Processed words for learn modal:', currentWords);
+            
             currentWords = shuffleArray(currentWords);
             currentIndex = 0;
             showCardContent();
@@ -51,8 +77,12 @@ function initLearnModal() {
             // Показываем модальное окно
             learnModalInstance.show();
             isInitialized = true;
+            console.log('Learn modal initialized and shown');
         })
-        .catch(error => console.error('Ошибка загрузки слов:', error));
+        .catch(error => {
+            console.error('Ошибка загрузки слов:', error);
+            alert('Ошибка при загрузке слов для карточек: ' + error.message);
+        });
 }
 
 function initLearnModalWithWords(words) {
@@ -156,42 +186,94 @@ function showNoWordsMessage() {
 }
 
 function submitLearnForm(knows) {
+    console.log('=== submitLearnForm called with knows:', knows, '===');
+    
     const wordId = document.getElementById('wordId').value;
-    fetch('/dashboard/update-progress', {
+    console.log('Updating progress for wordId:', wordId, 'knows:', knows);
+    
+    if (typeof currentUserId === 'undefined' || currentUserId === null) {
+        console.error('Error: currentUserId is not defined.');
+        return;
+    }
+    
+    const url = `/api/dashboard/words/progress?userId=${currentUserId}&wordId=${wordId}&knows=${knows}`;
+    console.log('Submitting progress to:', url);
+    
+    fetch(url, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userId: getUserId(), wordId: wordId, knows: knows })
+        credentials: 'include'
     })
-        .then(response => response.json())
-        .then(data => {
-            currentIndex++;
-            showCardContent();
+        .then(response => {
+            console.log('Progress update response status:', response.status);
+            if (response.ok) {
+                currentIndex++;
+                showCardContent();
+            } else {
+                throw new Error('Ошибка обновления прогресса: ' + response.status);
+            }
         })
-        .catch(error => console.error('Ошибка обновления прогресса:', error));
+        .catch(error => {
+            console.error('Ошибка обновления прогресса:', error);
+            alert('Ошибка при обновлении прогресса: ' + error.message);
+        });
 }
 
 function refillWords() {
-    fetch('/dashboard/refill-words', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userId: getUserId() })
+    console.log('=== refillWords called ===');
+    
+    if (typeof currentUserId === 'undefined' || currentUserId === null) {
+        console.error('Error: currentUserId is not defined.');
+        return;
+    }
+    
+    // Получаем настройки пользователя для подгрузки слов
+    fetch(`/api/dashboard/settings?userId=${currentUserId}`, {
+        credentials: 'include'
     })
-        .then(response => response.json())
-        .then(data => {
-            currentWords = data;
-            currentWords = shuffleArray(currentWords); // Перемешиваем новые слова
-            currentIndex = 0;
-            showCardContent();
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Ошибка получения настроек: ' + response.status);
+            }
+            return response.json();
         })
-        .catch(error => console.error('Ошибка получения новых слов:', error));
+        .then(settings => {
+            console.log('User settings for refill:', settings);
+            
+            const language = settings.language;
+            const minLevel = settings.minLevel;
+            const tags = settings.tags || [];
+            
+            if (!language || !minLevel) {
+                alert('Для пополнения слов необходимо настроить программу обучения');
+                return;
+            }
+            
+            const url = `/api/dashboard/words/refill?userId=${currentUserId}&language=${encodeURIComponent(language)}&minLevel=${encodeURIComponent(minLevel)}${tags.length > 0 ? '&tags=' + tags.map(encodeURIComponent).join('&tags=') : ''}`;
+            console.log('Refilling words via:', url);
+            
+            return fetch(url, {
+                method: 'POST',
+                credentials: 'include'
+            });
+        })
+        .then(response => {
+            console.log('Refill response status:', response.status);
+            if (!response.ok) {
+                throw new Error('Ошибка подгрузки слов: ' + response.status);
+            }
+            console.log('Words refilled successfully, reloading learn modal');
+            // Перезагружаем модальное окно с новыми словами
+            isInitialized = false;
+            initLearnModal();
+        })
+        .catch(error => {
+            console.error('Ошибка получения новых слов:', error);
+            alert('Ошибка при получении новых слов: ' + error.message);
+        });
 }
 
 function getUserId() {
-    return window.userId;
+    return currentUserId || window.currentUserId || window.userId;
 }
 
 function openLearnModal() {

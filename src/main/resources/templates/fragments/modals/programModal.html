@@ -5,22 +5,24 @@
                 <h5 class="modal-title" id="programModalLabel">Выбрать программу</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form th:action="@{/dashboard/update-settings}" method="post">
+            <form id="programForm" onsubmit="submitProgramForm(event)">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="language" class="form-label">Язык</label>
-                        <select class="form-select" id="language" name="language" required onchange="loadLevels(this.value)" th:disabled="${settings['language'] != null}">
-                            <option value="" disabled th:unless="${settings['language'] != null}">Выберите язык</option>
-                            <option th:each="lang : ${languages}" th:value="${lang.name}" th:text="${lang.name}" th:selected="${settings['language'] != null and lang.name == settings['language']}"></option>
+                        <select class="form-select" id="language" name="language" required onchange="loadLevels(this.value)" th:disabled="${settings != null and settings.containsKey('language')}">
+                            <option value="" disabled th:unless="${settings != null and settings.containsKey('language')}">Выберите язык</option>
+                            <option th:each="lang : ${languages}" th:value="${lang.name}" th:text="${lang.name}" th:selected="${settings != null and settings.containsKey('language') and lang.name == settings['language']}"></option>
                         </select>
                         <!-- Скрытое поле для передачи language, если select отключен -->
-                        <input type="hidden" name="language" th:value="${settings['language']}" th:if="${settings['language'] != null}">
+                        <input type="hidden" name="language" th:value="${settings['language']}" th:if="${settings != null and settings.containsKey('language')}">
                     </div>
                     <div class="mb-3">
                         <label for="minLevel" class="form-label">Минимальный уровень</label>
                         <select class="form-select" id="minLevel" name="minLevel" required>
                             <option value="" disabled selected>Сначала выберите язык</option>
                         </select>
+                        <!-- Скрытое поле для передачи сохраненного уровня -->
+                        <input type="hidden" name="savedMinLevel" th:value="${settings['minLevel']}" th:if="${settings != null and settings.containsKey('minLevel')}">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Темы (выберите несколько)</label>
@@ -46,7 +48,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-danger" onclick="resetProgram()" th:if="${settings['language'] != null}">Сбросить всё</button>
+                    <button type="button" class="btn btn-danger" onclick="resetProgram()" th:if="${settings != null and settings.containsKey('language')}">Сбросить всё</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
                     <button type="submit" class="btn btn-primary">Сохранить</button>
                 </div>

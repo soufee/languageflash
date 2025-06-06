@@ -7,7 +7,13 @@ function shuffleArray(array) {
 }
 
 function getActiveWordsCount() {
-    return fetch('/dashboard/settings')
+    if (typeof currentUserId === 'undefined' || currentUserId === null) {
+        console.error('Error: currentUserId is not defined.');
+        return Promise.resolve(50); // Возвращаем значение по умолчанию
+    }
+    return fetch(`/api/dashboard/settings?userId=${currentUserId}`, {
+        credentials: 'include'
+    })
         .then(response => response.json())
         .then(settings => settings.activeWordsCount || 50);
 }

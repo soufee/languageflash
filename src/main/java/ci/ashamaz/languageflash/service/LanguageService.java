@@ -79,7 +79,14 @@ public class LanguageService {
     @Transactional
     public void updateLanguageLevel(Long languageId, Level level, boolean active) {
         LanguageLevel languageLevel = languageLevelRepository.findByLanguageIdAndLevel(languageId, level)
-                .orElseThrow(() -> new IllegalArgumentException("Уровень " + level + " для языка " + languageId + " не найден"));
+                .orElseGet(() -> {
+                    log.info("Level {} for language {} not found, creating new", level, languageId);
+                    Language language = getLanguageById(languageId);
+                    LanguageLevel newLanguageLevel = new LanguageLevel();
+                    newLanguageLevel.setLanguage(language);
+                    newLanguageLevel.setLevel(level);
+                    return newLanguageLevel;
+                });
         languageLevel.setActive(active);
         languageLevelRepository.save(languageLevel);
         log.info("Updated level {} for language {}: active = {}", level, languageId, active);

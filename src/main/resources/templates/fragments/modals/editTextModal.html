@@ -1,38 +1,220 @@
 <div th:fragment="editTextModal" class="modal fade" id="editTextModal" tabindex="-1" aria-labelledby="editTextModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="editTextModalLabel">Редактировать текст</h5>
+                <h5 class="modal-title" id="editTextModalLabel" style="width: 100%;">
+                    <input type="text" class="form-control" id="editTitle" name="title" placeholder="Заголовок текста" required>
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="editTextForm" th:action="@{/texts/edit}" method="post">
-                    <input type="hidden" id="editId" name="id">
-                    <div class="mb-3">
-                        <label for="editTitle" class="form-label">Заголовок</label>
-                        <input type="text" class="form-control" id="editTitle" name="title" required>
+                <form id="editTextForm" th:action="@{/admin/texts/edit}" method="post">
+                    <input type="hidden" id="editTextId" name="id">
+                    
+                    <div class="row h-100">
+                        <!-- Левая колонка с информацией -->
+                        <div class="col-md-3 text-info-column">
+                            <div class="text-info-block">
+                                <!-- Группа: Язык, Уровень и Темы -->
+                                <div class="info-group mb-3">
+                                    <div class="language-level mb-2">
+                                        <label for="editLanguage" class="form-label">Язык:</label>
+                                        <select class="form-select mb-2" id="editLanguage" name="language" required>
+                                            <option value="" disabled selected>Выберите язык</option>
+                                            <option th:each="lang : ${languages}" th:value="${lang.name}" th:text="${lang.name}">Язык</option>
+                                        </select>
+                                        
+                                        <label for="editLevel" class="form-label">Уровень:</label>
+                                        <select class="form-select" id="editLevel" name="level" required>
+                                            <option value="" disabled selected>Выберите уровень</option>
+                                            <option value="A1">A1</option>
+                                            <option value="A2">A2</option>
+                                            <option value="B1">B1</option>
+                                            <option value="B2">B2</option>
+                                            <option value="C1">C1</option>
+                                            <option value="C2">C2</option>
+                                        </select>
+                                    </div>
+                                    <div class="tags-container">
+                                        <h6>Темы:</h6>
+                                        <select class="form-select" id="editTagsSelect" name="tags" multiple size="8">
+                                            <option th:each="tag : ${T(ci.ashamaz.languageflash.model.Tag).values()}" 
+                                                    th:value="${tag.name()}" 
+                                                    th:text="${tag.russianName}">
+                                                Тема
+                                            </option>
+                                        </select>
+                                        <small class="text-muted">Можно выбрать несколько тем. Удерживайте Ctrl (Cmd на Mac) для множественного выбора.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Основная колонка с текстами -->
+                        <div class="col-md-9">
+                            <div class="row text-split-row h-100">
+                                <div class="col-md-6">
+                                    <label for="editContent" class="form-label">Текст на языке оригинала:</label>
+                                    <textarea class="form-control flex-grow-1 h-90" id="editContent" name="content" rows="20" required></textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="editTranslation" class="form-label">Текст на русском:</label>
+                                    <textarea class="form-control flex-grow-1 h-90" id="editTranslation" name="translation" rows="20" required></textarea>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="editContent" class="form-label">Текст</label>
-                        <textarea class="form-control" id="editContent" name="content" rows="10" required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editTranslation" class="form-label">Перевод</label>
-                        <textarea class="form-control" id="editTranslation" name="translation" rows="10" required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editTopic" class="form-label">Тема</label>
-                        <select class="form-select" id="editTopic" name="topic" required>
-                            <option value="">Выберите тему</option>
-                            <option th:each="topic : ${topics}" th:value="${topic.id}" th:text="${topic.name}">Тема</option>
-                        </select>
+                    
+                    <!-- Секция для словаря текста -->
+                    <div class="text-dictionary-section mt-3">
+                        <h4>Словарь текста</h4>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <small>
+                                <strong>Важно:</strong> При удалении слов из словаря текста:
+                                <ul class="mb-0 mt-1">
+                                    <li>Слова остаются в базе данных, но помечаются как неактивные</li>
+                                    <li>Пользователи, которые уже добавили текст для изучения, продолжат видеть эти слова в своих словарях</li>
+                                    <li>Новые пользователи при добавлении текста получат только активные слова</li>
+                                    <li>Это гарантирует сохранение прогресса обучения и целостность данных</li>
+                                </ul>
+                            </small>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="editDictionaryTable">
+                                <thead>
+                                    <tr>
+                                        <th>Слово</th>
+                                        <th>Перевод</th>
+                                        <th>Пример</th>
+                                        <th>Перевод примера</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="editDictionaryBody">
+                                    <!-- Данные будут загружены динамически через JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Кнопка для добавления нового слова -->
+                        <div class="mt-2 mb-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="addNewWordRow()">
+                                <i class="bi bi-plus-circle"></i> Добавить слово
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="submit" form="editTextForm" class="btn btn-primary">Сохранить</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditTextForm()">Сохранить</button>
             </div>
         </div>
     </div>
-</div> 
+</div>
+
+<style>
+    #editTextModal .modal-body {
+        padding: 1rem;
+        max-height: calc(80vh - 120px);
+        overflow-y: auto;
+    }
+    
+    #editTextModal .row.h-100 {
+        height: 100%;
+        min-height: 400px;
+    }
+    
+    #editTextModal .text-info-column {
+        border-right: 1px solid #dee2e6;
+        padding-right: 20px;
+        height: 100%;
+    }
+
+    #editTextModal .info-group {
+        background-color: #e6f7ff;
+        border: 1px solid #b8dfff;
+        border-radius: 8px;
+        padding: 12px;
+        height: 100%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    #editTextModal .language-level {
+        display: flex;
+        flex-direction: column;
+    }
+
+    #editTextModal .tags-container {
+        margin-top: 1rem;
+        height: calc(100% - 200px);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #editTextModal select[multiple] {
+        flex-grow: 1;
+    }
+
+    #editTextModal .text-split-row {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        margin-left: 0;
+        margin-right: 0;
+        height: 100%;
+    }
+
+    #editTextModal .text-split-row .col-md-6 {
+        padding: 15px;
+        box-sizing: border-box;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #editTextModal .modal-title {
+        width: 100%;
+    }
+
+    #editTextModal .modal-title .form-control {
+        font-size: 1.25rem;
+        font-weight: 500;
+        border: none;
+        border-bottom: 1px solid #ddd;
+        border-radius: 0;
+        padding: 0.25rem 0;
+        margin: 0;
+        width: 100%;
+        background-color: transparent;
+    }
+
+    #editTextModal .modal-title .form-control:focus {
+        box-shadow: none;
+        border-color: #80bdff;
+    }
+    
+    #editTextModal textarea.form-control {
+        height: calc(100% - 30px);
+        resize: none;
+    }
+    
+    #editTextModal .text-dictionary-section {
+        border-top: 1px solid #dee2e6;
+        padding-top: 1rem;
+    }
+    
+    #editTextModal .word-action-btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        margin-right: 0.25rem;
+    }
+    
+    #editTextModal .word-input {
+        width: 100%;
+        padding: 0.25rem;
+        font-size: 0.9rem;
+    }
+</style> 

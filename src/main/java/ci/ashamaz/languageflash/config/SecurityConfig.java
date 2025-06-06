@@ -5,6 +5,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -14,6 +19,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf().disable()
+                .cors().and()
                 .authorizeRequests(authorizeRequests ->
                         authorizeRequests
                                 .antMatchers("/admin/**").hasRole("ADMIN")
@@ -22,6 +28,12 @@ public class SecurityConfig {
                                 .antMatchers("/texts").permitAll()
                                 .antMatchers("/texts/add", "/texts/edit", "/texts/delete/**").hasRole("ADMIN")
                                 .antMatchers("/texts/{id}").permitAll()
+                                .antMatchers("/about", "/method", "/contacts").permitAll()
+                                // API endpoints for authenticated users
+                                .antMatchers("/api/dashboard/**").authenticated()
+                                .antMatchers("/api/learn/**").authenticated()
+                                .antMatchers("/api/admin/**").hasRole("ADMIN")
+
                                 .anyRequest().authenticated()
                 )
                 .formLogin()
@@ -40,5 +52,18 @@ public class SecurityConfig {
                 .clearAuthentication(true)
                 .permitAll();
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }

@@ -7,7 +7,11 @@
 </head>
 <body>
 <div th:replace="~{fragments/header :: header}"></div>
-
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const currentUserId = /*[[${user != null ? user.id : null}]]*/ null;
+    /*]]>*/
+</script>
 <section class="content-section">
     <div class="container">
         <h1 th:text="'Здравствуйте, ' + ${user.firstName} + '!'">Здравствуйте, <span th:text="${user.firstName}"></span>!</h1>
@@ -20,7 +24,7 @@
         </div>
 
         <!-- Информация о программе -->
-        <div th:if="${settings['language'] != null}" class="mb-4">
+        <div th:if="${settings != null and settings.containsKey('language')}" class="mb-4">
             <h3>Ваша программа</h3>
             <p>Язык: <span th:text="${settings['language']}"></span></p>
             <p>Уровень: <span th:text="${settings['minLevel']}"></span></p>
@@ -34,9 +38,9 @@
             <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#activeWordsModal">
                 Посмотреть активные слова
             </button>
-            <button type="button" class="btn btn-primary" th:classappend="${settings['language'] == null ? 'disabled' : ''}"
+            <button type="button" class="btn btn-primary" th:classappend="${settings == null or !settings.containsKey('language') ? 'disabled' : ''}"
                onclick="initLearnModal()">Карточки</button>
-            <a href="#" class="btn btn-secondary ms-2" th:classappend="${settings['language'] == null ? 'disabled' : ''}"
+            <a href="#" class="btn btn-secondary ms-2" th:classappend="${settings == null or !settings.containsKey('language') ? 'disabled' : ''}"
                data-bs-toggle="modal" data-bs-target="#flashLearnModal">Флеш-запоминание</a>
         </div>
         <div class="mb-4">
@@ -78,6 +82,13 @@
 <div th:replace="~{fragments/modals/textWordsModal :: textWordsModal}"></div>
 
 <script>
+    // Инициализация модального окна программы при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof initProgramModal === 'function') {
+            initProgramModal();
+        }
+    });
+
     function openTextWordsModal() {
         console.log('Открываем модальное окно программно...');
         document.getElementById('textWordsLoadStatus').textContent = 'Программное открытие...';
@@ -115,7 +126,7 @@
                             document.getElementById('textWordsLoadStatus').textContent = 'Ошибка: функция loadTextWords не найдена';
                             
                             // Аварийный сценарий - перенаправление на отладочную страницу
-                            window.location.href = '/debug/text-words';
+                            window.location.href = '/texts/debug';
                         }
                     }, 300);
                 } else {

@@ -3,8 +3,7 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('custom.js загружен успешно');
-    
+
     // Инициализация всплывающих подсказок Bootstrap, если они есть на странице
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     if (tooltipTriggerList.length > 0) {

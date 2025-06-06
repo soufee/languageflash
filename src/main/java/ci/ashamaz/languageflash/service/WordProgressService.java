@@ -42,7 +42,7 @@ public class WordProgressService {
         User user = userService.getUserById(userId);
         if (user == null) {
             log.error("User not found for userId: {}", userId);
-            return;
+            throw new IllegalArgumentException("Пользователь с ID " + userId + " не найден");
         }
 
         List<Long> existingActiveWordIds = wordProgressRepository.findActiveByUserId(userId).stream()
@@ -217,15 +217,20 @@ public class WordProgressService {
             return;
         }
         
-        // Получаем слова из текста
-        List<TextWord> textWords = text.getWords();
-        if (textWords == null || textWords.isEmpty()) {
-            log.warn("No words found in text with id: {}", textId);
-            throw new IllegalArgumentException("В тексте нет слов для изучения");
+        // Получаем только активные слова из текста
+        List<TextWord> activeTextWords = text.getWords().stream()
+                .filter(TextWord::isActive)
+                .collect(Collectors.toList());
+        
+        if (activeTextWords.isEmpty()) {
+            log.warn("No active words found in text with id: {}", textId);
+            throw new IllegalArgumentException("В тексте нет активных слов для изучения");
         }
         
+        log.info("Found {} active words in text with id: {}", activeTextWords.size(), textId);
+        
         List<WordProgress> newProgressList = new ArrayList<>();
-        for (TextWord word : textWords) {
+        for (TextWord word : activeTextWords) {
             WordProgress progress = new WordProgress();
             progress.setUser(user);
             progress.setWord(word);
@@ -350,5 +355,85 @@ public class WordProgressService {
                 .collect(Collectors.toList());
         log.debug("Found {} active progress entries for program for userId: {}", progress.size(), userId);
         return progress;
+    }
+
+    /**
+     * Проверяет, какие из переданных слов используются в прогрессе пользователей
+     * @param textId ID текста
+     * @param wordIds Список ID слов для проверки
+     * @return Список ID слов, которые используются в прогрессе пользователей
+     */
+    public List<Long> getWordIdsInUseFromText(Long textId, List<Long> wordIds) {
+        log.info("Checking if words are in use for textId: {}, wordIds: {}", textId, wordIds);
+        
+        if (wordIds == null || wordIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        // Находим все WordProgress записи, связанные с текстом и указанными словами
+        List<WordProgress> progressEntries = wordProgressRepository.findAll().stream()
+                .filter(wp -> wp.getSource() == WordSource.TEXT && 
+                             wp.getText() != null && 
+                             wp.getText().getId().equals(textId) &&
+                             wp.getWord() != null && 
+                             wordIds.contains(wp.getWord().getId()))
+                .collect(Collectors.toList());
+        
+        List<Long> wordsInUse = progressEntries.stream()
+                .map(wp -> wp.getWord().getId())
+                .distinct()
+                .collect(Collectors.toList());
+        
+        log.info("Found {} words in use out of {} requested for textId: {}", 
+                wordsInUse.size(), wordIds.size(), textId);
+        
+        return wordsInUse;
+    }
+    
+    /**
+     * Логически отсоединяет слова от текста в записях WordProgress
+     * Это нужно, чтобы слова, которые уже используются пользователями,
+     * продолжали существовать в их прогрессе даже после удаления из текста
+     * 
+     * @param textId ID текста
+     * @param wordIds Список ID слов для отсоединения
+     */
+    @Transactional
+    public void detachWordsFromText(Long textId, List<Long> wordIds) {
+        log.info("Detaching words from text: textId={}, wordIds={}", textId, wordIds);
+        
+        if (wordIds == null || wordIds.isEmpty()) {
+            return;
+        }
+        
+        // Находим все WordProgress записи, связанные с текстом и указанными словами
+        List<WordProgress> progressEntries = wordProgressRepository.findAll().stream()
+                .filter(wp -> wp.getSource() == WordSource.TEXT && 
+                             wp.getText() != null && 
+                             wp.getText().getId().equals(textId) &&
+                             wp.getWord() != null && 
+                             wordIds.contains(wp.getWord().getId()))
+                .collect(Collectors.toList());
+        
+        // Отмечаем эти записи как происходящие из другого источника, чтобы они
+        // не зависели от удаления слов из текста
+        for (WordProgress wp : progressEntries) {
+            // Меняем источник на CUSTOM, чтобы сохранить слово в прогрессе пользователя
+            wp.setSource(WordSource.CUSTOM);
+            // Удаляем связь с текстом, так как теперь это пользовательское слово
+            wp.setText(null);
+            log.debug("Detached word {} from text {} in progress for user {}", 
+                    wp.getWord().getId(), textId, wp.getUser().getId());
+        }
+        
+        // Сохраняем изменения
+        if (!progressEntries.isEmpty()) {
+            wordProgressRepository.saveAll(progressEntries);
+            log.info("Detached {} progress entries from text {}", progressEntries.size(), textId);
+        }
+    }
+
+    public boolean isTextInProgress(Long userId, Long textId) {
+        return wordProgressRepository.existsByUserIdAndTextIdAndSource(userId, textId, WordSource.TEXT);
     }
 }

@@ -34,6 +34,9 @@ public class TextWord extends AbstractWord {
     @Column(name = "tags")
     private String tags;
 
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
     private static final ObjectMapper mapper = new ObjectMapper();
 
     public Set<Tag> getTagsAsSet() {

@@ -25,6 +25,10 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        if (email == null || email.trim().isEmpty()) {
+            throw new UsernameNotFoundException("Email не может быть пустым");
+        }
+
         Optional<User> userOptional = userRepository.findByEmail(email);
 
         if (!userOptional.isPresent()) {
@@ -35,6 +39,10 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         if (!user.isEmailConfirmed()) {
             throw new UsernameNotFoundException("Email не подтвержден");
+        }
+
+        if (user.getPasswordHash() == null) {
+            throw new UsernameNotFoundException("Пароль не установлен");
         }
 
         // Сохраняем пользовательский объект в сессии

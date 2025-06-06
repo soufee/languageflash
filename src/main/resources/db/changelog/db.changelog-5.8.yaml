@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 5.8.0
+      author: system
+      changes:
+        - update:
+            tableName: words
+            columns:
+              - column:
+                  name: is_active
+                  valueBoolean: true
+            where: is_active IS NULL
+      comment: Устанавливаем is_active=true для всех существующих слов 

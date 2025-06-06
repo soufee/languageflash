@@ -23,32 +23,19 @@
             </button>
         </div>
 
-        <!-- Форма фильтрации и выбора размера страницы -->
+        <!-- Форма фильтрации -->
         <form th:action="@{/admin/words}" method="get" class="mb-4">
             <div class="row">
-                <div class="col-md-4 mb-3">
-                    <label for="wordFilter" class="form-label">Слово</label>
-                    <input type="text" class="form-control" id="wordFilter" name="wordFilter" th:value="${wordFilter}">
+                <div class="col-md-8 mb-3">
+                    <label for="filter" class="form-label">Фильтр</label>
+                    <input type="text" class="form-control" id="filter" name="filter" th:value="${filter}" placeholder="Поиск по слову или переводу">
                 </div>
-                <div class="col-md-4 mb-3">
-                    <label for="translationFilter" class="form-label">Перевод</label>
-                    <input type="text" class="form-control" id="translationFilter" name="translationFilter" th:value="${translationFilter}">
-                </div>
-                <div class="col-md-2 mb-3">
-                    <label for="size" class="form-label">Записей на странице</label>
-                    <select class="form-select" id="size" name="size" onchange="this.form.submit()">
-                        <option value="25" th:selected="${wordsPage.size == 25}">25</option>
-                        <option value="50" th:selected="${wordsPage.size == 50}">50</option>
-                        <option value="100" th:selected="${wordsPage.size == 100}">100</option>
-                    </select>
-                </div>
-                <div class="col-md-2 mb-3 d-flex align-items-end">
+                <div class="col-md-4 mb-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">
                         <i class="fas fa-filter me-2"></i> Применить
                     </button>
                 </div>
             </div>
-            <input type="hidden" name="page" value="0">
         </form>
 
         <!-- Таблица слов -->
@@ -67,14 +54,18 @@
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="word : ${wordsPage.content}">
+                <tr th:each="word : ${words}">
                     <td th:text="${word.word}"></td>
                     <td th:text="${word.translation}"></td>
                     <td th:text="${word.exampleSentence}"></td>
                     <td th:text="${word.exampleTranslation}"></td>
                     <td th:text="${word.language.name}"></td>
                     <td th:text="${word.level}"></td>
-                    <td th:text="${wordTagsMap[word.id]}"></td>
+                    <td>
+                        <span th:each="tag, stat : ${wordTags[word.id]}" 
+                              th:text="${tag.russianName + (stat.last ? '' : ', ')}">
+                        </span>
+                    </td>
                     <td>
                         <button class="btn-icon btn-icon-edit" data-bs-toggle="modal" data-bs-target="#editWordModal"
                                 th:attr="data-word-id=${word.id},
@@ -82,8 +73,9 @@
                                          data-translation=${word.translation},
                                          data-example=${word.exampleSentence},
                                          data-example-translation=${word.exampleTranslation},
-                                         data-level=${word.level},
-                                         data-tags=${wordTagNamesMap[word.id]}">
+                                         data-language-id=${word.language.id},
+                                         data-level=${word.level}"
+                                th:data-tags="${#strings.arrayJoin(#strings.arrayJoin(wordTags[word.id].![name], ','), ',')}">
                             <i class="fas fa-edit"></i>
                         </button>
                     </td>
@@ -91,46 +83,6 @@
                 </tbody>
             </table>
         </div>
-
-        <!-- Пагинация -->
-        <nav th:if="${wordsPage.totalPages > 1}" class="d-flex justify-content-center mt-4">
-            <ul class="pagination">
-                <!-- Первая страница -->
-                <li class="page-item" th:classappend="${wordsPage.number == 0 ? 'disabled' : ''}">
-                    <a class="page-link" th:href="@{/admin/words(page=0,size=${wordsPage.size},wordFilter=${wordFilter},translationFilter=${translationFilter})}">
-                        Первая
-                    </a>
-                </li>
-                <!-- Предыдущая страница -->
-                <li class="page-item" th:classappend="${wordsPage.number == 0 ? 'disabled' : ''}">
-                    <a class="page-link" th:href="@{/admin/words(page=${wordsPage.number - 1},size=${wordsPage.size},wordFilter=${wordFilter},translationFilter=${translationFilter})}">
-                        <i class="fas fa-chevron-left"></i>
-                    </a>
-                </li>
-                <!-- Первые страницы -->
-                <th:block th:each="i : ${#numbers.sequence(0, wordsPage.totalPages - 1)}" th:if="${i < 5 or i >= wordsPage.totalPages - 2 or (i >= wordsPage.number - 2 and i <= wordsPage.number + 2)}">
-                    <li class="page-item" th:classappend="${wordsPage.number == i ? 'active' : ''}">
-                        <a class="page-link" th:href="@{/admin/words(page=${i},size=${wordsPage.size},wordFilter=${wordFilter},translationFilter=${translationFilter})}" th:text="${i + 1}"></a>
-                    </li>
-                </th:block>
-                <!-- Троеточие -->
-                <li class="page-item disabled" th:if="${wordsPage.number > 6 and wordsPage.totalPages > 8}">
-                    <span class="page-link">...</span>
-                </li>
-                <!-- Следующая страница -->
-                <li class="page-item" th:classappend="${wordsPage.number == wordsPage.totalPages - 1 ? 'disabled' : ''}">
-                    <a class="page-link" th:href="@{/admin/words(page=${wordsPage.number + 1},size=${wordsPage.size},wordFilter=${wordFilter},translationFilter=${translationFilter})}">
-                        <i class="fas fa-chevron-right"></i>
-                    </a>
-                </li>
-                <!-- Последняя страница -->
-                <li class="page-item" th:classappend="${wordsPage.number == wordsPage.totalPages - 1 ? 'disabled' : ''}">
-                    <a class="page-link" th:href="@{/admin/words(page=${wordsPage.totalPages - 1},size=${wordsPage.size},wordFilter=${wordFilter},translationFilter=${translationFilter})}">
-                        Последняя
-                    </a>
-                </li>
-            </ul>
-        </nav>
     </div>
 </section>
 
@@ -154,11 +106,11 @@
                     </div>
                     <div class="mb-3">
                         <label for="addExampleSentence" class="form-label">Пример</label>
-                        <input type="text" class="form-control" id="addExampleSentence" name="exampleSentence" required>
+                        <input type="text" class="form-control" id="addExampleSentence" name="exampleSentence">
                     </div>
                     <div class="mb-3">
                         <label for="addExampleTranslation" class="form-label">Перевод примера</label>
-                        <input type="text" class="form-control" id="addExampleTranslation" name="exampleTranslation" required>
+                        <input type="text" class="form-control" id="addExampleTranslation" name="exampleTranslation">
                     </div>
                     <div class="mb-3">
                         <label for="addLanguageId" class="form-label">Язык</label>
@@ -171,13 +123,19 @@
                         <label for="addLevel" class="form-label">Уровень</label>
                         <select class="form-select" id="addLevel" name="level" required>
                             <option value="" disabled selected>Выберите уровень</option>
-                            <option th:each="level : ${levels}" th:value="${level}" th:text="${level}"></option>
+                            <option th:each="level : ${levels}" 
+                                    th:value="${level.name()}" 
+                                    th:text="${level.name()}">
+                            </option>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label for="addTags" class="form-label">Теги</label>
                         <select class="form-select" id="addTags" name="tags" multiple>
-                            <option th:each="tag : ${tags}" th:value="${tag.name()}" th:text="${tag.russianName}"></option>
+                            <option th:each="tag : ${tags}" 
+                                    th:value="${tag.name()}" 
+                                    th:text="${tag.russianName}">
+                            </option>
                         </select>
                     </div>
                 </div>
@@ -200,7 +158,7 @@
             </div>
             <form th:action="@{/admin/words/edit}" method="post">
                 <div class="modal-body">
-                    <input type="hidden" id="editWordId" name="wordId">
+                    <input type="hidden" id="editWordId" name="id">
                     <div class="mb-3">
                         <label for="editWord" class="form-label">Слово</label>
                         <input type="text" class="form-control" id="editWord" name="word" required>
@@ -211,22 +169,34 @@
                     </div>
                     <div class="mb-3">
                         <label for="editExampleSentence" class="form-label">Пример</label>
-                        <input type="text" class="form-control" id="editExampleSentence" name="exampleSentence" required>
+                        <input type="text" class="form-control" id="editExampleSentence" name="exampleSentence">
                     </div>
                     <div class="mb-3">
                         <label for="editExampleTranslation" class="form-label">Перевод примера</label>
-                        <input type="text" class="form-control" id="editExampleTranslation" name="exampleTranslation" required>
+                        <input type="text" class="form-control" id="editExampleTranslation" name="exampleTranslation">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editLanguageId" class="form-label">Язык</label>
+                        <select class="form-select" id="editLanguageId" name="languageId" required>
+                            <option th:each="lang : ${languages}" th:value="${lang.id}" th:text="${lang.name}"></option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label for="editLevel" class="form-label">Уровень</label>
                         <select class="form-select" id="editLevel" name="level" required>
-                            <option th:each="level : ${levels}" th:value="${level}" th:text="${level}"></option>
+                            <option th:each="level : ${levels}" 
+                                    th:value="${level.name()}" 
+                                    th:text="${level.name()}">
+                            </option>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label for="editTags" class="form-label">Теги</label>
                         <select class="form-select" id="editTags" name="tags" multiple>
-                            <option th:each="tag : ${tags}" th:value="${tag.name()}" th:text="${tag.russianName}"></option>
+                            <option th:each="tag : ${tags}" 
+                                    th:value="${tag.name()}" 
+                                    th:text="${tag.russianName}">
+                            </option>
                         </select>
                     </div>
                 </div>
@@ -251,19 +221,20 @@
             var translation = button.getAttribute('data-translation');
             var example = button.getAttribute('data-example');
             var exampleTranslation = button.getAttribute('data-example-translation');
+            var languageId = button.getAttribute('data-language-id');
             var level = button.getAttribute('data-level');
-            var tags = button.getAttribute('data-tags') ? button.getAttribute('data-tags').split(',') : [];
+            var tags = button.getAttribute('data-tags').split(',');
 
-            var modal = this;
-            modal.querySelector('#editWordId').value = wordId;
-            modal.querySelector('#editWord').value = word;
-            modal.querySelector('#editTranslation').value = translation;
-            modal.querySelector('#editExampleSentence').value = example;
-            modal.querySelector('#editExampleTranslation').value = exampleTranslation;
-            modal.querySelector('#editLevel').value = level;
+            document.getElementById('editWordId').value = wordId;
+            document.getElementById('editWord').value = word;
+            document.getElementById('editTranslation').value = translation;
+            document.getElementById('editExampleSentence').value = example;
+            document.getElementById('editExampleTranslation').value = exampleTranslation;
+            document.getElementById('editLanguageId').value = languageId;
+            document.getElementById('editLevel').value = level;
 
-            var tagSelect = modal.querySelector('#editTags');
-            Array.from(tagSelect.options).forEach(option => {
+            var tagSelect = document.getElementById('editTags');
+            Array.from(tagSelect.options).forEach(function(option) {
                 option.selected = tags.includes(option.value);
             });
         });

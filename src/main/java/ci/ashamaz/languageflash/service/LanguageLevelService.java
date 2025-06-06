@@ -68,6 +68,23 @@ public class LanguageLevelService {
         log.info("Language level updated: {}", languageLevel);
     }
 
+    @Transactional
+    public void updateLanguageLevel(Long languageId, Level level, boolean active) {
+        log.info("Updating language level for languageId: {}, level: {}, active: {}", languageId, level, active);
+        LanguageLevel languageLevel = languageLevelRepository.findByLanguageIdAndLevel(languageId, level)
+                .orElseGet(() -> {
+                    log.info("Level {} for language {} not found, creating new", level, languageId);
+                    Language language = languageService.getLanguageById(languageId);
+                    LanguageLevel newLanguageLevel = new LanguageLevel();
+                    newLanguageLevel.setLanguage(language);
+                    newLanguageLevel.setLevel(level);
+                    return newLanguageLevel;
+                });
+        languageLevel.setActive(active);
+        languageLevelRepository.save(languageLevel);
+        log.info("Language level updated: {}", languageLevel);
+    }
+
     public List<LanguageLevel> getLevelsForLanguage(Long languageId) { // Переименован для совместимости
         return languageLevelRepository.findByLanguageId(languageId);
     }

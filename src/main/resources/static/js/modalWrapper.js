@@ -5,8 +5,7 @@
 
 // Оборачиваем инициализацию для предотвращения ошибок
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('modalWrapper.js: Инициализация модальных окон');
-    
+
     // Модальные окна, которые могут отсутствовать на некоторых страницах
     const modalIds = [
         'learnModal',
@@ -23,10 +22,8 @@ document.addEventListener('DOMContentLoaded', function() {
     modalIds.forEach(modalId => {
         const modalElement = document.getElementById(modalId);
         if (!modalElement) {
-            console.log(`modalWrapper.js: Модальное окно #${modalId} не найдено на странице`);
             // Создаем заглушку для предотвращения ошибок
             window[`init${modalId.charAt(0).toUpperCase() + modalId.slice(1)}`] = function() {
-                console.log(`modalWrapper.js: Вызвана заглушка для #${modalId}`);
                 return false;
             };
         } else {

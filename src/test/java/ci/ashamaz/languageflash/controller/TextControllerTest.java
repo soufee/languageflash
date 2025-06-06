@@ -4,6 +4,7 @@ import ci.ashamaz.languageflash.model.*;
 import ci.ashamaz.languageflash.service.LanguageService;
 import ci.ashamaz.languageflash.service.TextService;
 import ci.ashamaz.languageflash.service.UserService;
+import ci.ashamaz.languageflash.service.WordProgressService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -16,15 +17,15 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.ui.Model;
 
 import javax.servlet.http.HttpSession;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -38,6 +39,9 @@ class TextControllerTest {
 
     @Mock
     private UserService userService;
+
+    @Mock
+    private WordProgressService wordProgressService;
 
     @Mock
     private HttpSession session;
@@ -54,12 +58,9 @@ class TextControllerTest {
     @InjectMocks
     private TextController textController;
 
-    private MockMvc mockMvc;
-
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        mockMvc = MockMvcBuilders.standaloneSetup(textController).build();
         SecurityContextHolder.setContext(securityContext);
         when(securityContext.getAuthentication()).thenReturn(authentication);
     }
@@ -91,22 +92,23 @@ class TextControllerTest {
         when(session.getAttribute("user")).thenReturn(user);
         when(userService.getSettings(user.getId())).thenReturn(settings);
         when(languageService.getAllLanguages()).thenReturn(languages);
-        when(textService.getActiveTextsByLanguage(anyString(), any(Pageable.class))).thenReturn(textPage);
+        when(textService.getActiveTextsByLanguage(eq("English"), any(Pageable.class))).thenReturn(textPage);
+        when(textService.getAllTags()).thenReturn(Collections.emptyList());
         when(authentication.isAuthenticated()).thenReturn(true);
         when(authentication.getPrincipal()).thenReturn("user");
         doReturn(Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))).when(authentication).getAuthorities();
         
         // Вызов тестируемого метода
-        String viewName = textController.texts(session, model, null, null, 0, 10);
+        String viewName = textController.texts("English", null, 0, model, session);
         
         // Проверка результатов
         verify(model, times(1)).addAttribute(eq("languages"), anyList());
         verify(model, times(1)).addAttribute(eq("selectedLanguage"), eq("English"));
-        verify(model, times(1)).addAttribute(eq("tags"), eq(Tag.values()));
-        verify(model, times(1)).addAttribute(eq("texts"), anyList());
-        verify(model, times(1)).addAttribute(eq("page"), any(Page.class));
+        verify(model, times(1)).addAttribute(eq("allTags"), anyList());
         verify(model, times(1)).addAttribute(eq("isAuthenticated"), eq(true));
-        verify(model, times(1)).addAttribute(eq("isAdmin"), eq(false));
+        verify(model, times(1)).addAttribute(eq("texts"), eq(texts));
+        verify(model, times(1)).addAttribute(eq("page"), eq(textPage));
+        verify(textService, times(1)).getActiveTextsByLanguage(eq("English"), any(Pageable.class));
         assertEquals("texts", viewName);
     }
 
@@ -132,21 +134,126 @@ class TextControllerTest {
         
         // Настройка моков
         when(languageService.getAllLanguages()).thenReturn(languages);
+        when(textService.getAllTags()).thenReturn(Collections.emptyList());
         when(textService.getActiveTextsByLanguageAndTag(eq(selectedLanguage), eq(selectedTag), any(Pageable.class))).thenReturn(textPage);
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
         when(authentication.getPrincipal()).thenReturn("user");
         
         // Вызов тестируемого метода
-        String viewName = textController.texts(session, model, selectedLanguage, selectedTag, 0, 10);
+        String viewName = textController.texts(selectedLanguage, selectedTag, 0, model, session);
         
         // Проверка результатов
+        verify(textService).getAllTags();
         verify(textService).getActiveTextsByLanguageAndTag(eq(selectedLanguage), eq(selectedTag), any(Pageable.class));
+        verify(model).addAttribute(eq("texts"), eq(texts));
+        verify(model).addAttribute(eq("page"), eq(textPage));
+        verify(model).addAttribute(eq("selectedTag"), eq(selectedTag));
         assertEquals("texts", viewName);
     }
 
     @Test
-    void testGetText() {
+    void testGetTextWordsDebug() {
+        // Подготовка данных
+        User user = new User();
+        user.setId(1L);
+        
+        Text text = new Text();
+        text.setId(1L);
+        text.setTitle("Test Text");
+        
+        WordProgress wordProgress = new WordProgress();
+        wordProgress.setId(1L);
+        wordProgress.setText(text);
+        
+        List<WordProgress> wordProgresses = Collections.singletonList(wordProgress);
+        
+        // Настройка моков
+        when(session.getAttribute("user")).thenReturn(user);
+        when(wordProgressService.getTextProgress(user.getId())).thenReturn(wordProgresses);
+        when(wordProgressService.getTextsWithWords(user.getId())).thenReturn(Collections.singletonList(text));
+        
+        // Вызов тестируемого метода
+        String viewName = textController.getTextWordsDebug(model, session);
+        
+        // Проверка результатов
+        verify(model).addAttribute(eq("textWords"), eq(wordProgresses));
+        verify(model).addAttribute(eq("texts"), anyList());
+        verify(model).addAttribute(eq("user"), eq(user));
+        assertEquals("debug/text-words-debug", viewName);
+    }
+
+    @Test
+    void testViewText() {
+        // Подготовка данных
+        Long textId = 1L;
+        User user = new User();
+        user.setId(1L);
+        
+        Text text = new Text();
+        text.setId(textId);
+        text.setTitle("Test Text");
+        
+        // Настройка моков
+        when(session.getAttribute("user")).thenReturn(user);
+        when(textService.getTextById(textId)).thenReturn(text);
+        when(wordProgressService.isTextInProgress(user.getId(), textId)).thenReturn(true);
+        
+        // Вызов тестируемого метода
+        String viewName = textController.viewText(textId, model, session);
+        
+        // Проверка результатов
+        verify(model).addAttribute(eq("text"), eq(text));
+        verify(model).addAttribute(eq("isInProgress"), eq(true));
+        verify(model).addAttribute(eq("isAuthenticated"), eq(true));
+        assertEquals("text", viewName);
+    }
+
+    @Test
+    void testShowAddTextForm() {
+        // Подготовка данных
+        Language language = new Language();
+        language.setName("English");
+        List<Language> languages = Collections.singletonList(language);
+        
+        // Настройка моков
+        when(languageService.getAllLanguages()).thenReturn(languages);
+        
+        // Вызов тестируемого метода
+        String viewName = textController.showAddTextForm(model);
+        
+        // Проверка результатов
+        verify(model).addAttribute(eq("languages"), eq(languages));
+        assertEquals("addText", viewName);
+    }
+
+    @Test
+    void testShowEditTextForm() {
+        // Подготовка данных
+        Long textId = 1L;
+        Text text = new Text();
+        text.setId(textId);
+        text.setTitle("Test Text");
+        
+        Language language = new Language();
+        language.setName("English");
+        List<Language> languages = Collections.singletonList(language);
+        
+        // Настройка моков
+        when(textService.getTextById(textId)).thenReturn(text);
+        when(languageService.getAllLanguages()).thenReturn(languages);
+        
+        // Вызов тестируемого метода
+        String viewName = textController.showEditTextForm(textId, model);
+        
+        // Проверка результатов
+        verify(model).addAttribute(eq("text"), eq(text));
+        verify(model).addAttribute(eq("languages"), eq(languages));
+        assertEquals("editText", viewName);
+    }
+
+    @Test
+    void testShowDeleteTextForm() {
         // Подготовка данных
         Long textId = 1L;
         Text text = new Text();
@@ -157,152 +264,10 @@ class TextControllerTest {
         when(textService.getTextById(textId)).thenReturn(text);
         
         // Вызов тестируемого метода
-        Text result = textController.getText(textId);
+        String viewName = textController.showDeleteTextForm(textId, model);
         
         // Проверка результатов
-        verify(textService).getTextById(textId);
-        assertEquals(textId, result.getId());
-        assertEquals("Test Text", result.getTitle());
-    }
-
-    @Test
-    void testAddText() {
-        // Подготовка данных
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("title", "New Text");
-        requestBody.put("language", "English");
-        requestBody.put("level", "B1");
-        requestBody.put("tags", "LITERATURE");
-        requestBody.put("content", "<p>Content</p>");
-        requestBody.put("translation", "<p>Перевод</p>");
-        
-        List<Map<String, String>> words = new ArrayList<>();
-        Map<String, String> word = new HashMap<>();
-        word.put("word", "test");
-        word.put("translation", "тест");
-        word.put("exampleSentence", "This is a test");
-        word.put("exampleTranslation", "Это тест");
-        words.add(word);
-        requestBody.put("words", words);
-        
-        Language language = new Language();
-        language.setName("English");
-        
-        // Настройка моков
-        when(languageService.getLanguageByName("English")).thenReturn(language);
-        doNothing().when(textService).saveText(any(Text.class));
-        
-        // Настройка аутентификации для админа
-        doReturn(Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN"))).when(authentication).getAuthorities();
-        
-        // Вызов тестируемого метода
-        Map<String, String> result = textController.addText(requestBody);
-        
-        // Проверка результатов
-        assertEquals("success", result.get("status"));
-        verify(languageService).getLanguageByName("English");
-        verify(textService).saveText(any(Text.class));
-    }
-
-    @Test
-    void testAddTextWithError() {
-        // Подготовка данных
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("title", "New Text");
-        requestBody.put("language", "Unknown");
-        
-        // Настройка моков
-        when(languageService.getLanguageByName("Unknown")).thenReturn(null);
-        
-        // Вызов тестируемого метода
-        Map<String, String> result = textController.addText(requestBody);
-        
-        // Проверка результатов
-        assertEquals("error", result.get("status"));
-        assertTrue(result.containsKey("message"));
-    }
-
-    @Test
-    void testEditText() {
-        // Подготовка данных
-        Long textId = 1L;
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("id", textId);
-        requestBody.put("title", "Updated Text");
-        requestBody.put("language", "English");
-        requestBody.put("level", "B1");
-        requestBody.put("tags", "LITERATURE");
-        requestBody.put("content", "<p>Updated Content</p>");
-        requestBody.put("translation", "<p>Обновленный перевод</p>");
-        
-        List<Map<String, String>> words = new ArrayList<>();
-        Map<String, String> word = new HashMap<>();
-        word.put("word", "updated");
-        word.put("translation", "обновлено");
-        word.put("exampleSentence", "This is updated");
-        word.put("exampleTranslation", "Это обновлено");
-        words.add(word);
-        requestBody.put("words", words);
-        
-        Text existingText = new Text();
-        existingText.setId(textId);
-        existingText.setWords(new ArrayList<>());
-        
-        Language language = new Language();
-        language.setName("English");
-        
-        // Настройка моков
-        when(textService.getTextById(textId)).thenReturn(existingText);
-        when(languageService.getLanguageByName("English")).thenReturn(language);
-        
-        // Вызов тестируемого метода
-        Map<String, String> result = textController.editText(requestBody);
-        
-        // Проверка результатов
-        assertEquals("success", result.get("status"));
-        verify(textService).getTextById(textId);
-        verify(languageService).getLanguageByName("English");
-        verify(textService).saveText(any(Text.class));
-    }
-
-    @Test
-    void testEditTextWithError() {
-        // Подготовка данных
-        Long textId = 1L;
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("id", textId);
-        requestBody.put("language", "Unknown");
-        
-        Text existingText = new Text();
-        existingText.setId(textId);
-        
-        // Настройка моков
-        when(textService.getTextById(textId)).thenReturn(existingText);
-        when(languageService.getLanguageByName("Unknown")).thenReturn(null);
-        
-        // Вызов тестируемого метода
-        Map<String, String> result = textController.editText(requestBody);
-        
-        // Проверка результатов
-        assertEquals("error", result.get("status"));
-        assertTrue(result.containsKey("message"));
-    }
-
-    @Test
-    void testDeleteText() {
-        // Подготовка данных
-        Long textId = 1L;
-        Map<String, Long> requestBody = new HashMap<>();
-        requestBody.put("textId", textId);
-        
-        // Настройка моков
-        doNothing().when(textService).softDeleteText(textId);
-        
-        // Вызов тестируемого метода
-        Map<String, String> result = textController.deleteText(requestBody);
-        
-        // Проверка результатов
-        assertEquals("success", result.get("status"));
-        verify(textService).softDeleteText(textId);
+        verify(model).addAttribute(eq("text"), eq(text));
+        assertEquals("deleteText", viewName);
     }
 } 

@@ -236,7 +236,7 @@ window.markAsLearned = function(wordId) {
     if (textWordsLoadStatus) textWordsLoadStatus.textContent = 'Обновление статуса слова...';
     
     // Отправляем запрос на обновление статуса слова
-    fetch('/dashboard/update-progress', {
+    fetch('/api/dashboard/update-progress', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -312,7 +312,7 @@ function updateWordCounters() {
     fetchTextWordsCount();
     
     // Обновляем счетчик изученных слов
-    fetch('/dashboard/learned-words-count')
+    fetch('/api/dashboard/learned-words-count')
         .then(response => response.json())
         .then(data => {
             const learnedWordsCount = document.getElementById('learnedWordsCount');

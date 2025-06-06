@@ -19,7 +19,7 @@
                 </table>
                 <p id="noActiveWords" style="display: none;">Нет активных слов.</p>
                 <button type="button" class="btn btn-primary mt-3" id="refillButton" onclick="refillActiveWords()" disabled>Получить новые</button>
-                <p th:if="${settings != null and settings['language'] != null}" class="mt-2">Не хватает слов? <a href="#" data-bs-toggle="modal" data-bs-target="#addTagsModal">Добавить темы</a></p>
+                <p th:if="${settings != null and settings.containsKey('language')}" class="mt-2">Не хватает слов? <a href="#" data-bs-toggle="modal" data-bs-target="#addTagsModal">Добавить темы</a></p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
@@ -27,52 +27,3 @@
         </div>
     </div>
 </div>
-
-<script th:inline="javascript">
-function displayActiveWords(words) {
-    let tbody = document.getElementById('activeWordsBody');
-    tbody.innerHTML = '';
-    
-    words.forEach(word => {
-        let knowledgePercentage = 100 - (word.knowledgeFactor * 10);
-        knowledgePercentage = Math.max(0, Math.min(100, knowledgePercentage)); // Ограничиваем от 0% до 100%
-        
-        let sourceText = 'Программа';
-        let sourceClass = 'bg-primary';
-        
-        if (word.source) {
-            switch(word.source) {
-                case 'PROGRAM':
-                    sourceText = 'Программа';
-                    sourceClass = 'bg-primary';
-                    break;
-                case 'CUSTOM':
-                    sourceText = 'Мой словарь';
-                    sourceClass = 'bg-info';
-                    break;
-                case 'TEXT':
-                    sourceText = word.textTitle ? `Текст: ${word.textTitle}` : 'Из текста';
-                    sourceClass = 'bg-warning';
-                    break;
-            }
-        }
-        
-        let row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${word.word}</td>
-            <td>${word.translation}</td>
-            <td>
-                <div class="progress">
-                    <div class="progress-bar" role="progressbar" style="width: ${knowledgePercentage}%;" 
-                         aria-valuenow="${knowledgePercentage}" aria-valuemin="0" aria-valuemax="100">
-                        ${knowledgePercentage.toFixed(0)}%
-                    </div>
-                </div>
-            </td>
-            <td><span class="badge ${sourceClass}">${sourceText}</span></td>
-            <td><button type="button" class="btn btn-danger" onclick="removeWord('${word.word}')">Удалить</button></td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-</script>
