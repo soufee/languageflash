@@ -1,14 +1,17 @@
 package ci.ashamaz.languageflash.model;
 
-import lombok.Data;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
-import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.Set;
 
 @Entity
 @Table(name = "users")
-@Data
+@Getter
+@Setter
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,7 +33,7 @@ public class User {
     private String confirmationCode;
 
     @Column(name = "is_email_confirmed", nullable = false)
-    private boolean isEmailConfirmed = false;
+    private boolean emailConfirmed = false;
 
     @Column(name = "reset_code")
     private String resetCode;
@@ -41,11 +44,28 @@ public class User {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "role")
-    private Set<String> roles;
+    private Set<String> roles = new HashSet<>();
 
     @Column(name = "blocked", nullable = false)
     private boolean blocked = false;
 
+    @Column(name = "is_premium", nullable = false)
+    private boolean premium = false;
+
+    @Column(name = "premium_expires_at")
+    private LocalDateTime premiumExpiresAt;
+
+    @Column(name = "interface_language", nullable = false)
+    private String interfaceLanguage = "ru";
+
+    @Column(name = "created_at", nullable = false, updatable = false, insertable = false)
+    private LocalDateTime createdAt;
+
     @Column(name = "settings", columnDefinition = "text")
-    private String settings; // JSON с фильтрами программы и настройками
+    private String settings;
+
+    /** Premium активен, если флаг установлен и срок не истёк (бессрочный — при null-дате). */
+    public boolean hasActivePremium() {
+        return premium && (premiumExpiresAt == null || premiumExpiresAt.isAfter(LocalDateTime.now()));
+    }
 }

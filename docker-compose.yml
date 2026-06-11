@@ -1,20 +1,40 @@
-version: '3.8'
 services:
-  app:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: wordflash
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
     build: .
     ports:
       - "8087:8087"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5432/wordflash
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/wordflash
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_LIQUIBASE_CHANGE_LOG: classpath:db/changelog/db.changelog-master.yaml
-      SERVER_PORT: 8087
-      SPRING_MAIL_HOST: smtp.yandex.ru
-      SPRING_MAIL_PORT: 465
-      SPRING_MAIL_USERNAME: soufee1@yandex.ru
-      SPRING_MAIL_PASSWORD: qwerty
-      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: true
-      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: true
-      JWT_SECRET: your-secret-key-here
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-0123456789abcdef0123456789}
+      APP_MAIL_MOCK: "true"
+      APP_CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

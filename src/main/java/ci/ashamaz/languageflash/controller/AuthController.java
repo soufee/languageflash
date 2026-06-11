@@ -1,134 +1,60 @@
 package ci.ashamaz.languageflash.controller;
 
-import ci.ashamaz.languageflash.dto.RegisterRequest;
-import ci.ashamaz.languageflash.model.User;
-import ci.ashamaz.languageflash.service.UserService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.WebAttributes;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import ci.ashamaz.languageflash.dto.AuthDtos.*;
+import ci.ashamaz.languageflash.service.AuthService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpSession;
-import javax.validation.Valid;
-import java.util.Optional;
+import java.util.Map;
 
-@Controller
-@RequestMapping("/auth")
-@Slf4j
+@RestController
+@RequestMapping("/api/v1/auth")
 public class AuthController {
 
-    @Autowired
-    private UserService userService;
+    private final AuthService authService;
 
-    @GetMapping("/register")
-    public String showRegistrationForm(Model model, HttpSession session) {
-        model.addAttribute("registerRequest", new RegisterRequest());
-        addAuthAttributes(session, model);
-        return "register";
+    public AuthController(AuthService authService) {
+        this.authService = authService;
     }
 
     @PostMapping("/register")
-    public String registerUser(@Valid @ModelAttribute("registerRequest") RegisterRequest request,
-                               Model model, HttpSession session) {
-        try {
-            userService.registerUser(request);
-            session.setAttribute("message", "Регистрация успешна! Проверьте email для подтверждения.");
-            return "redirect:/";
-        } catch (IllegalArgumentException e) {
-            model.addAttribute("error", e.getMessage());
-            addAuthAttributes(session, model);
-            return "register";
-        }
+    @ResponseStatus(HttpStatus.CREATED)
+    public Map<String, Object> register(@Valid @RequestBody RegisterRequest request) {
+        UserDto user = authService.register(request);
+        return Map.of("user", user, "message", "Письмо с подтверждением отправлено на " + user.email());
     }
 
-    @GetMapping("/login")
-    public String showLoginForm(HttpSession session, Model model) {
-        // Получаем и добавляем информацию об ошибке аутентификации, если есть
-        AuthenticationException exception = (AuthenticationException) session
-                .getAttribute(WebAttributes.AUTHENTICATION_EXCEPTION);
-        if (exception != null) {
-            String errorMessage = exception.getMessage();
-            model.addAttribute("loginError", errorMessage);
-            session.removeAttribute(WebAttributes.AUTHENTICATION_EXCEPTION);
-        }
-
-        addAuthAttributes(session, model);
-        return "login";
+    @PostMapping("/login")
+    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+        return authService.login(request);
     }
 
-    @GetMapping("/logout")
-    public String logout(HttpSession session) {
-        session.invalidate();
-        return "redirect:/";
+    @PostMapping("/refresh")
+    public AuthResponse refresh(@Valid @RequestBody RefreshRequest request) {
+        return authService.refresh(request);
     }
 
-    @GetMapping("/reset-password")
-    public String showResetPasswordForm(HttpSession session, Model model) {
-        addAuthAttributes(session, model);
-        return "reset-password";
+    @PostMapping("/confirm-email")
+    public Map<String, Object> confirmEmail(@Valid @RequestBody ConfirmEmailRequest request) {
+        authService.confirmEmail(request);
+        return Map.of("confirmed", true);
     }
 
     @PostMapping("/reset-password/request")
-    public String requestResetPassword(@RequestParam("email") String email, Model model, HttpSession session) {
-        try {
-            userService.sendResetCode(email);
-            model.addAttribute("email", email);
-            model.addAttribute("message", "Код отправлен на ваш email");
-            Optional<User> userOptional = userService.findByEmail(email);
-            userOptional.ifPresent(user -> model.addAttribute("expiryTime", user.getResetCodeExpiry()));
-            return "reset-password-code";
-        } catch (IllegalArgumentException e) {
-            model.addAttribute("error", e.getMessage());
-            addAuthAttributes(session, model);
-            return "reset-password";
-        }
+    public Map<String, Object> requestReset(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.requestPasswordReset(request);
+        return Map.of("message", "Если email зарегистрирован, на него отправлен код сброса");
     }
 
-    @PostMapping("/reset-password/verify")
-    public String verifyResetCode(@RequestParam("email") String email,
-                                  @RequestParam("code") String code,
-                                  @RequestParam("newPassword") String newPassword,
-                                  Model model,
-                                  HttpSession session) {
-        try {
-            userService.resetPassword(email, code, newPassword);
-            session.setAttribute("message", "Пароль успешно изменён. Войдите с новым паролем.");
-            return "redirect:/";
-        } catch (IllegalArgumentException e) {
-            model.addAttribute("email", email);
-            model.addAttribute("error", e.getMessage());
-            addAuthAttributes(session, model);
-            return "reset-password-code";
-        }
+    @PostMapping("/reset-password/confirm")
+    public Map<String, Object> confirmReset(@Valid @RequestBody ResetPasswordConfirmRequest request) {
+        authService.confirmPasswordReset(request);
+        return Map.of("message", "Пароль успешно изменён");
     }
 
-    @GetMapping("/confirm-email")
-    public String confirmEmail(@RequestParam("email") String email,
-                               @RequestParam("code") String code,
-                               Model model,
-                               HttpSession session) {
-        if (userService.confirmEmail(email, code)) {
-            session.setAttribute("message", "Email успешно подтверждён. Теперь вы можете войти.");
-            return "redirect:/";
-        } else {
-            session.setAttribute("error", "Неверный или просроченный код подтверждения");
-            return "redirect:/";
-        }
-    }
-
-    private void addAuthAttributes(HttpSession session, Model model) {
-        Object loginError = session.getAttribute("loginError");
-        if (loginError != null) {
-            model.addAttribute("loginError", loginError);
-            session.removeAttribute("loginError");
-        }
-        Object message = session.getAttribute("message");
-        if (message != null) {
-            model.addAttribute("message", message);
-            session.removeAttribute("message");
-        }
+    @PostMapping("/oauth2")
+    public AuthResponse oauth2(@Valid @RequestBody OAuth2Request request) {
+        return authService.oauth2(request);
     }
 }

@@ -33,3 +33,7 @@ build/
 .vscode/
 
 src/main/resources/secret.properties
+
+### Frontend ###
+frontend/node_modules/
+frontend/dist/
