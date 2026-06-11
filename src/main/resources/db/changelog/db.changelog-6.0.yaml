@@ -1,0 +1,541 @@
+databaseChangeLog:
+  # ===== Этап 1 ТЗ: премиум-статус и OAuth у пользователей =====
+  - changeSet:
+      id: 6.0-1-users-premium
+      author: claude
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: is_premium
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: premium_expires_at
+                  type: timestamp
+              - column:
+                  name: interface_language
+                  type: varchar(8)
+                  defaultValue: ru
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 6.0-2-oauth-accounts
+      author: claude
+      changes:
+        - createTable:
+            tableName: oauth_accounts
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_oauth_accounts_user
+                    references: users(id)
+                    deleteCascade: true
+              - column:
+                  name: provider
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: provider_user_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: oauth_accounts
+            columnNames: provider, provider_user_id
+            constraintName: uq_oauth_provider_user
+
+  - changeSet:
+      id: 6.0-3-refresh-tokens
+      author: claude
+      changes:
+        - createTable:
+            tableName: refresh_tokens
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_refresh_tokens_user
+                    references: users(id)
+                    deleteCascade: true
+              - column:
+                  name: token_hash
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: expires_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: revoked
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: refresh_tokens
+            indexName: idx_refresh_tokens_user
+            columns:
+              - column:
+                  name: user_id
+
+  # ===== Расширение полей слов под лимиты ТЗ (3.10) =====
+  - changeSet:
+      id: 6.0-4-widen-word-columns
+      author: claude
+      changes:
+        - modifyDataType:
+            tableName: words
+            columnName: translation
+            newDataType: varchar(200)
+        - modifyDataType:
+            tableName: words
+            columnName: example_sentence
+            newDataType: varchar(500)
+        - modifyDataType:
+            tableName: words
+            columnName: example_translation
+            newDataType: varchar(500)
+
+  # ===== level_order для корректного сравнения уровней =====
+  - changeSet:
+      id: 6.0-5-level-order
+      author: claude
+      changes:
+        - addColumn:
+            tableName: words
+            columns:
+              - column:
+                  name: level_order
+                  type: int
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
+        - sql:
+            sql: >
+              UPDATE words SET level_order = CASE level
+                WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3
+                WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6 ELSE 1 END;
+        - createIndex:
+            tableName: words
+            indexName: idx_words_language_level_order
+            columns:
+              - column:
+                  name: language_id
+              - column:
+                  name: level_order
+
+  # ===== Нормализация тегов =====
+  - changeSet:
+      id: 6.0-6-word-tags
+      author: claude
+      changes:
+        - createTable:
+            tableName: word_tags
+            columns:
+              - column:
+                  name: word_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_word_tags_word
+                    references: words(id)
+                    deleteCascade: true
+              - column:
+                  name: tag
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: word_tags
+            columnNames: word_id, tag
+            constraintName: pk_word_tags
+        - createIndex:
+            tableName: word_tags
+            indexName: idx_word_tags_tag
+            columns:
+              - column:
+                  name: tag
+        - sql:
+            sql: >
+              INSERT INTO word_tags (word_id, tag)
+              SELECT id, jsonb_array_elements_text(tags::jsonb)
+              FROM words
+              WHERE tags IS NOT NULL AND tags LIKE '[%'
+              ON CONFLICT DO NOTHING;
+
+  # ===== Личный словарь с прогрессом изучения =====
+  - changeSet:
+      id: 6.0-7-user-dictionary
+      author: claude
+      changes:
+        - createTable:
+            tableName: user_dictionary
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user_dictionary_user
+                    references: users(id)
+                    deleteCascade: true
+              - column:
+                  name: word_id
+                  type: bigint
+                  constraints:
+                    foreignKeyName: fk_user_dictionary_word
+                    references: words(id)
+              - column:
+                  name: custom_word
+                  type: varchar(100)
+              - column:
+                  name: custom_translation
+                  type: varchar(200)
+              - column:
+                  name: custom_example
+                  type: varchar(500)
+              - column:
+                  name: custom_example_translation
+                  type: varchar(500)
+              - column:
+                  name: source
+                  type: varchar(20)
+                  defaultValue: SYSTEM
+                  constraints:
+                    nullable: false
+              - column:
+                  name: knowledge_factor
+                  type: double precision
+                  defaultValueNumeric: 1.0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_learned
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: in_active_batch
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_reviewed
+                  type: timestamp
+              - column:
+                  name: next_review_date
+                  type: timestamp
+              - column:
+                  name: added_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: user_dictionary
+            indexName: idx_user_dictionary_user
+            columns:
+              - column:
+                  name: user_id
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_user_dictionary_user_word
+              ON user_dictionary (user_id, word_id) WHERE word_id IS NOT NULL;
+
+  # Перенос прогресса по системным словам
+  - changeSet:
+      id: 6.0-8-migrate-word-progress
+      author: claude
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO user_dictionary (user_id, word_id, source, knowledge_factor,
+                                           is_learned, in_active_batch, last_reviewed, next_review_date, added_at)
+              SELECT wp.user_id, wp.word_id,
+                     CASE wp.source WHEN 'TEXT' THEN 'ARTICLE' WHEN 'CUSTOM' THEN 'MANUAL' ELSE 'SYSTEM' END,
+                     wp.knowledge_factor, wp.is_learned, NOT wp.is_learned,
+                     wp.last_reviewed, wp.next_review_date, COALESCE(wp.last_reviewed, now())
+              FROM word_progress wp
+              JOIN words w ON w.id = wp.word_id
+              WHERE w.type = 'WORD'
+              ON CONFLICT DO NOTHING;
+        - sql:
+            sql: >
+              INSERT INTO user_dictionary (user_id, word_id, custom_word, custom_translation,
+                                           custom_example, custom_example_translation, source,
+                                           knowledge_factor, is_learned, in_active_batch,
+                                           last_reviewed, next_review_date, added_at)
+              SELECT w.user_id, NULL, w.word, w.translation, w.example_sentence, w.example_translation,
+                     'MANUAL', COALESCE(wp.knowledge_factor, 1.0), COALESCE(wp.is_learned, false),
+                     COALESCE(NOT wp.is_learned, false), wp.last_reviewed, wp.next_review_date, now()
+              FROM words w
+              LEFT JOIN word_progress wp ON wp.word_id = w.id
+              WHERE w.type = 'CUSTOM' AND w.user_id IS NOT NULL;
+
+  # ===== Статьи (миграция из texts) =====
+  - changeSet:
+      id: 6.0-9-articles
+      author: claude
+      changes:
+        - createTable:
+            tableName: articles
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: title
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: translation
+                  type: text
+              - column:
+                  name: language_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_articles_language
+                    references: languages(id)
+              - column:
+                  name: level
+                  type: varchar(2)
+                  defaultValue: A1
+                  constraints:
+                    nullable: false
+              - column:
+                  name: level_order
+                  type: int
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tags
+                  type: text
+              - column:
+                  name: status
+                  type: varchar(20)
+                  defaultValue: ACTIVE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: owner_user_id
+                  type: bigint
+                  constraints:
+                    foreignKeyName: fk_articles_owner
+                    references: users(id)
+                    deleteCascade: true
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: articles
+            indexName: idx_articles_language_level
+            columns:
+              - column:
+                  name: language_id
+              - column:
+                  name: level_order
+        - sql:
+            sql: >
+              INSERT INTO articles (title, content, translation, language_id, level, level_order, tags, status, created_at)
+              SELECT title, content, translation, language_id,
+                     COALESCE(NULLIF(level, ''), 'A1'),
+                     CASE COALESCE(NULLIF(level, ''), 'A1')
+                       WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3
+                       WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6 ELSE 1 END,
+                     tags,
+                     CASE WHEN is_active THEN 'ACTIVE' ELSE 'ARCHIVED' END,
+                     created_date
+              FROM texts;
+
+  # ===== Кэш переводов =====
+  - changeSet:
+      id: 6.0-10-translation-cache
+      author: claude
+      changes:
+        - createTable:
+            tableName: translation_cache
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: source_text
+                  type: varchar(1000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_language
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: target_language
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: translation
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: provider
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cached_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: translation_cache
+            columnNames: source_text, source_language, target_language
+            constraintName: uq_translation_cache
+
+  # ===== Системные настройки =====
+  - changeSet:
+      id: 6.0-11-system-settings
+      author: claude
+      changes:
+        - createTable:
+            tableName: system_settings
+            columns:
+              - column:
+                  name: key
+                  type: varchar(100)
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: value
+                  type: text
+              - column:
+                  name: type
+                  type: varchar(20)
+                  defaultValue: STRING
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: text
+        - sql:
+            sql: >
+              INSERT INTO system_settings (key, value, type, description) VALUES
+              ('free_dictionary_limit', '100', 'INTEGER', 'Лимит слов в личном словаре для бесплатных пользователей'),
+              ('ads_enabled_web', 'true', 'BOOLEAN', 'Показ рекламы в веб-версии'),
+              ('ads_enabled_mobile', 'true', 'BOOLEAN', 'Показ рекламы в мобильном приложении'),
+              ('ad_unit_id_web_banner', '', 'STRING', 'ID рекламного блока (web banner)'),
+              ('ad_unit_id_mobile_banner', '', 'STRING', 'ID рекламного блока (mobile banner)'),
+              ('ad_unit_id_mobile_interstitial', '', 'STRING', 'ID рекламного блока (mobile interstitial)'),
+              ('price_premium_1m', '299', 'INTEGER', 'Цена Premium-подписки на 1 месяц, руб.'),
+              ('price_premium_6m', '1490', 'INTEGER', 'Цена Premium-подписки на 6 месяцев, руб.'),
+              ('price_premium_12m', '2490', 'INTEGER', 'Цена Premium-подписки на 12 месяцев, руб.'),
+              ('profanity_words', '[]', 'JSON', 'Словарь запрещённых слов для модерации статей (JSON-массив строк)');
+
+  # ===== Активность обучения (статистика, streak) =====
+  - changeSet:
+      id: 6.0-12-study-activity
+      author: claude
+      changes:
+        - createTable:
+            tableName: study_activity
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_study_activity_user
+                    references: users(id)
+                    deleteCascade: true
+              - column:
+                  name: activity_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: learned_count
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: answers_count
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: study_activity
+            columnNames: user_id, activity_date
+            constraintName: uq_study_activity_user_date
