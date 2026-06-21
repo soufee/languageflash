@@ -31,6 +31,8 @@ public final class AuthDtos {
 
     public record OAuth2Request(@NotBlank String provider, @NotBlank String identityToken) {}
 
+    public record ResendConfirmationRequest(@NotBlank @Email String email) {}
+
     public record UserDto(Long id, String email, String firstName, String lastName,
                           boolean emailConfirmed, boolean premium, LocalDateTime premiumExpiresAt,
                           String interfaceLanguage, java.util.Set<String> roles, LocalDateTime createdAt) {

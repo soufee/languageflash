@@ -1,40 +1,47 @@
+name: languageflash
+
 services:
-  db:
+  lf-db:
     image: postgres:15
+    container_name: lf-db
     environment:
-      POSTGRES_DB: wordflash
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${LF_DB_NAME}
+      POSTGRES_USER: ${LF_DB_USER}
+      POSTGRES_PASSWORD: ${LF_DB_PASSWORD}
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+      - lf-pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres"]
+      test: ["CMD", "pg_isready", "-U", "${LF_DB_USER}", "-d", "${LF_DB_NAME}"]
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
 
-  backend:
+  lf-backend:
     build: .
+    container_name: lf-backend
     ports:
-      - "8087:8087"
+      - "127.0.0.1:8087:8087"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/wordflash
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-0123456789abcdef0123456789}
-      APP_MAIL_MOCK: "true"
-      APP_CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      SPRING_DATASOURCE_URL: jdbc:postgresql://lf-db:5432/${LF_DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${LF_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${LF_DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      APP_MAIL_MOCK: "false"
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST}
+      SPRING_MAIL_PORT: "${SPRING_MAIL_PORT}"
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL}
+      APP_CORS_ORIGINS: ${APP_CORS_ORIGINS}
+      APP_BASE_URL: ${APP_BASE_URL}
+      RATE_LIMIT_ENABLED: "true"
+      OAUTH_GOOGLE_CLIENT_ID: ${OAUTH_GOOGLE_CLIENT_ID}
+      OAUTH_GOOGLE_CLIENT_SECRET: ${OAUTH_GOOGLE_CLIENT_SECRET}
     depends_on:
-      - db
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
+      lf-db:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
-  pgdata:
+  lf-pgdata:

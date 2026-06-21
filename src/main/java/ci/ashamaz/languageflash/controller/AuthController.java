@@ -41,6 +41,12 @@ public class AuthController {
         return Map.of("confirmed", true);
     }
 
+    @PostMapping("/resend-confirmation")
+    public Map<String, Object> resendConfirmation(@Valid @RequestBody ResendConfirmationRequest request) {
+        authService.resendConfirmation(request);
+        return Map.of("message", "Новый код подтверждения отправлен на " + request.email());
+    }
+
     @PostMapping("/reset-password/request")
     public Map<String, Object> requestReset(@Valid @RequestBody ResetPasswordRequest request) {
         authService.requestPasswordReset(request);

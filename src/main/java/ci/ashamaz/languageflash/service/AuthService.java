@@ -192,6 +192,20 @@ public class AuthService {
         return new AuthResponse(access, refresh, UserDto.from(user));
     }
 
+    @Transactional
+    public void resendConfirmation(ResendConfirmationRequest request) {
+        User user = userRepository.findByEmail(request.email().toLowerCase())
+                .orElseThrow(() -> ApiException.notFound("Пользователь не найден"));
+        if (user.isEmailConfirmed()) {
+            throw ApiException.badRequest("Email уже подтверждён");
+        }
+        String code = numericCode(6);
+        user.setConfirmationCode(code);
+        userRepository.save(user);
+
+        emailService.sendConfirmation(user.getEmail(), user.getFirstName(), code, baseUrl);
+    }
+
     private String numericCode(int length) {
         return String.format("%0" + length + "d", random.nextInt((int) Math.pow(10, length)));
     }
